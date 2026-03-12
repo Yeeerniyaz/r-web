@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import {
   Container,
   Title,
@@ -51,12 +51,12 @@ import api from "../api/axios.js";
 
 // ==========================================
 // ИНТЕРАКТИВНЫЙ 3D-ЭЛЕМЕНТ НА FRAMER MOTION
+// (Оставлен без единого изменения, как и просил)
 // ==========================================
 const HeroIllustration = () => {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
 
-  // Вычисляем углы наклона в зависимости от положения мыши
   const rotateX = useTransform(y, [-300, 300], [20, -20]);
   const rotateY = useTransform(x, [-300, 300], [-20, 20]);
 
@@ -81,7 +81,7 @@ const HeroIllustration = () => {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        perspective: 1200, // Глубина сцены
+        perspective: 1200,
         cursor: "pointer",
       }}
     >
@@ -94,11 +94,9 @@ const HeroIllustration = () => {
           transformStyle: "preserve-3d",
           position: "relative",
         }}
-        // Плавное парение вверх-вниз по умолчанию
         animate={{ y: [0, -15, 0] }}
         transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }}
       >
-        {/* Глубокая тень/свечение позади конструкции */}
         <Box
           style={{
             position: "absolute",
@@ -110,7 +108,6 @@ const HeroIllustration = () => {
           }}
         />
 
-        {/* Главный объемный щит (Лайтбокс) */}
         <Paper
           radius="xl"
           style={{
@@ -127,7 +124,6 @@ const HeroIllustration = () => {
             overflow: "hidden"
           }}
         >
-          {/* Стеклянный блик (Glassmorphism) */}
           <Box 
             style={{ 
               position: 'absolute', 
@@ -140,7 +136,6 @@ const HeroIllustration = () => {
           <motion.img
             src="/assets/logo.svg"
             alt="Logo"
-            // Логотип выпирает на 50px вперед
             style={{ width: 90, height: 90, transform: "translateZ(50px)", filter: "drop-shadow(0 10px 15px rgba(0,0,0,0.5))" }}
           />
           <Title
@@ -150,7 +145,7 @@ const HeroIllustration = () => {
               color: "white",
               letterSpacing: "3px",
               fontFamily: '"Alyamama", sans-serif',
-              transform: "translateZ(40px)", // Текст выпирает на 40px
+              transform: "translateZ(40px)",
               textShadow: "0 10px 15px rgba(0,0,0,0.5)"
             }}
           >
@@ -166,7 +161,6 @@ const HeroIllustration = () => {
           </Badge>
         </Paper>
 
-        {/* Парящий элемент 1 (Символ 3D-букв) */}
         <motion.div
           style={{ position: "absolute", top: -20, right: -40, transform: "translateZ(90px)" }}
           animate={{ y: [0, 15, 0], rotate: [0, 10, 0] }}
@@ -177,7 +171,6 @@ const HeroIllustration = () => {
           </ThemeIcon>
         </motion.div>
 
-        {/* Парящий элемент 2 (Символ Лайтбоксов) */}
         <motion.div
           style={{ position: "absolute", bottom: 30, left: -50, transform: "translateZ(110px)" }}
           animate={{ y: [0, -20, 0], rotate: [0, -15, 0] }}
@@ -188,7 +181,6 @@ const HeroIllustration = () => {
           </ThemeIcon>
         </motion.div>
 
-        {/* Парящий элемент 3 (Символ Монтажа) - Спрятан слегка позади */}
         <motion.div
           style={{ position: "absolute", top: 120, left: -30, transform: "translateZ(-40px)" }}
           animate={{ y: [0, 10, 0] }}
@@ -198,10 +190,20 @@ const HeroIllustration = () => {
             <IconTools size={25} color="#1B2E3D" />
           </ThemeIcon>
         </motion.div>
-
       </motion.div>
     </Box>
   );
+};
+
+// 🔥 SENIOR УТИЛИТА: Безопасный парсинг JSON из CMS с возвратом оригинала при ошибке
+const parseCMSArray = (jsonString, fallbackArray) => {
+  if (!jsonString) return fallbackArray;
+  try {
+    const parsed = JSON.parse(jsonString);
+    return Array.isArray(parsed) ? parsed : fallbackArray;
+  } catch (e) {
+    return fallbackArray;
+  }
 };
 
 export default function Home() {
@@ -251,10 +253,11 @@ export default function Home() {
   ];
 
   // ==========================================
-  // 2. СОСТОЯНИЯ: ПРАЙСЫ И НАСТРОЙКИ КАЛЬКУЛЯТОРА
+  // 2. СОСТОЯНИЯ: ПРАЙСЫ, CMS И НАСТРОЙКИ КАЛЬКУЛЯТОРА
   // ==========================================
   const [priceList, setPriceList] = useState([]);
   const [calcConfigs, setCalcConfigs] = useState([]);
+  const [pageData, setPageData] = useState({}); // 🔥 Новое состояние для CMS
   const [loadingData, setLoadingData] = useState(true);
   const [isDbConnected, setIsDbConnected] = useState(true);
 
@@ -282,20 +285,36 @@ export default function Home() {
       try {
         setLoadingData(true);
 
+        // 1. Загрузка прайсов
         const pricesRes = await api.get("/prices");
         const loadedPrices = pricesRes.data?.data || pricesRes.data || [];
-        setPriceList(loadedPrices);
+        setPriceList(Array.isArray(loadedPrices) ? loadedPrices : []);
 
+        // 2. Загрузка настроек калькулятора
         const configRes = await api.get("/settings/calculator");
-        let loadedConfigs = configRes.data?.config || [];
+        let loadedConfigs = configRes.data?.config || configRes.data?.data?.config || [];
 
-        if (loadedConfigs.length > 0) {
+        if (Array.isArray(loadedConfigs) && loadedConfigs.length > 0) {
           setCalcConfigs(loadedConfigs);
           setActiveConfigId(loadedConfigs[0].id);
           setIsDbConnected(true);
         } else {
-          throw new Error("Настройки пусты");
+          setIsDbConnected(false);
         }
+
+        // 3. 🔥 SENIOR ADDITION: Загрузка контента из CMS (Page Builder)
+        try {
+          const blocksRes = await api.get("/pages/public?page=home");
+          const blocks = blocksRes.data?.data || [];
+          
+          // Преобразуем массив в удобный объект (Словарь) по типу блока
+          const blocksMap = {};
+          blocks.forEach(b => { blocksMap[b.type] = b; });
+          setPageData(blocksMap);
+        } catch (cmsError) {
+          console.warn("CMS данные недоступны, используются дефолтные тексты", cmsError);
+        }
+
       } catch (error) {
         console.error("Ошибка загрузки данных витрины:", error);
         setIsDbConnected(false);
@@ -472,6 +491,30 @@ export default function Home() {
     }
   };
 
+  // ==========================================
+  // ПОДГОТОВКА ДИНАМИЧЕСКИХ ДАННЫХ ИЗ CMS (С хардкодными фолбэками)
+  // ==========================================
+  const statsList = parseCMSArray(pageData.Stats?.content, [
+    { count: "100%", text: "Контроль качества" },
+    { count: "0 ₸", text: "Выезд на замер" },
+    { count: "12 мес", text: "Гарантия на работы" },
+    { count: "24/7", text: "Прием заявок" },
+  ]);
+
+  const processList = parseCMSArray(pageData.WorkProcess?.content, [
+    { step: "01", title: "Заявка и Замер", desc: "Оставляете заявку, наш инженер выезжает на объект для точного замера." },
+    { step: "02", title: "Дизайн и Смета", desc: "Готовим 3D-макет вашей вывески и прозрачную смету без скрытых платежей." },
+    { step: "03", title: "Производство", desc: "Изготавливаем заказ в нашем цеху с соблюдением всех технологий." },
+    { step: "04", title: "Монтаж", desc: "Бережно доставляем и профессионально монтируем готовую конструкцию." },
+  ]);
+
+  const faqList = parseCMSArray(pageData.Faq?.content, [
+    { q: "Сколько времени занимает изготовление вывески?", a: "Сроки зависят от сложности проекта. Стандартные лайтбоксы и баннеры мы изготавливаем от 1 до 3 рабочих дней. Сложные объемные буквы и крышные установки — от 5 до 10 дней." },
+    { q: "Даете ли вы гарантию на работу?", a: "Да, мы предоставляем официальную гарантию от 1 года на все световые элементы (диоды, блоки питания) и несущие металлоконструкции." },
+    { q: "Выезжаете ли вы на замер бесплатно?", a: "Да, выезд инженера-замерщика по городу Алматы осуществляется абсолютно бесплатно. Специалист оценит фасад, сделает точные замеры и проконсультирует по материалам." },
+    { q: "Делаете ли вы согласование вывесок с акиматом?", a: "Да, наша компания может взять на себя все бюрократические вопросы по получению разрешительных документов на размещение наружной рекламы в архитектуре города." },
+  ]);
+
   return (
     <div
       style={{
@@ -592,7 +635,7 @@ export default function Home() {
                 radius="sm"
                 style={{ padding: "12px 14px", fontSize: "12px", fontWeight: 700, color: "#1B2E3D", borderColor: "#1B2E3D" }}
               >
-                Собственное производство в Алматы
+                {pageData.Hero?.content || "Собственное производство в Алматы"}
               </Badge>
               <Title
                 order={1}
@@ -600,15 +643,24 @@ export default function Home() {
                   color: "#1B2E3D",
                   fontFamily: '"Alyamama", sans-serif',
                   letterSpacing: "1px",
-                  fontSize: "clamp(24px, 3.5vw, 42px)", // Максимально аккуратный и читаемый размер
+                  fontSize: "clamp(24px, 3.5vw, 42px)",
                   lineHeight: 1.2,
                 }}
               >
-                РЕКЛАМА, КОТОРАЯ<br />ПРИНОСИТ ДЕНЬГИ
+                {/* Разбивка заголовка на строки с сохранением дизайна */}
+                {pageData.Hero?.title ? (
+                  pageData.Hero.title.split('\n').map((line, idx, arr) => (
+                    <Fragment key={idx}>
+                      {line}
+                      {idx !== arr.length - 1 && <br />}
+                    </Fragment>
+                  ))
+                ) : (
+                  <>РЕКЛАМА, КОТОРАЯ<br />ПРИНОСИТ ДЕНЬГИ</>
+                )}
               </Title>
               <Text c="dimmed" size="md" mt="md" maw={400} lh={1.6}>
-                Изготавливаем вывески, лайтбоксы и металлоконструкции премиум-класса. 
-                Даем гарантию до 2 лет и монтируем точно в срок.
+                {pageData.Hero?.subtitle || "Изготавливаем вывески, лайтбоксы и металлоконструкции премиум-класса. Даем гарантию до 2 лет и монтируем точно в срок."}
               </Text>
 
               <Group mt={30} gap="sm">
@@ -657,7 +709,7 @@ export default function Home() {
           <Box id="catalog">
             <Center mb={40}>
                <Title order={3} style={{ color: "#1B2E3D", textTransform: 'uppercase', letterSpacing: '1px' }}>
-                  Наши возможности
+                  {pageData.Catalog?.title || "Наши возможности"}
                </Title>
             </Center>
             <Grid gutter="xl">
@@ -717,12 +769,7 @@ export default function Home() {
       <Box bg="#1B2E3D" py={60}>
         <Container size="lg">
           <Grid align="center" justify="center" gutter={40}>
-            {[
-              { count: "100%", text: "Контроль качества" },
-              { count: "0 ₸", text: "Выезд на замер" },
-              { count: "12 мес", text: "Гарантия на работы" },
-              { count: "24/7", text: "Прием заявок" },
-            ].map((stat, idx) => (
+            {statsList.map((stat, idx) => (
               <Grid.Col span={{ base: 6, sm: 3 }} key={idx}>
                 <Stack gap={5} align="center">
                   <Title order={1} style={{ color: "white", fontSize: "48px", fontWeight: 900 }}>
@@ -752,35 +799,14 @@ export default function Home() {
         <Container size="lg">
           <Center mb={60} style={{ flexDirection: "column" }}>
             <Badge color="gray" variant="outline" mb="md" radius="sm" style={{ borderColor: "#1B2E3D", color: "#1B2E3D" }}>
-              Прозрачный процесс
+              {pageData.WorkProcess?.subtitle || "Прозрачный процесс"}
             </Badge>
             <Title order={2} style={{ color: "#1B2E3D", fontSize: "36px" }}>
-              Как мы работаем
+              {pageData.WorkProcess?.title || "Как мы работаем"}
             </Title>
           </Center>
           <Grid gutter={40}>
-            {[
-              {
-                step: "01",
-                title: "Заявка и Замер",
-                desc: "Оставляете заявку, наш инженер выезжает на объект для точного замера.",
-              },
-              {
-                step: "02",
-                title: "Дизайн и Смета",
-                desc: "Готовим 3D-макет вашей вывески и прозрачную смету без скрытых платежей.",
-              },
-              {
-                step: "03",
-                title: "Производство",
-                desc: "Изготавливаем заказ в нашем цеху с соблюдением всех технологий.",
-              },
-              {
-                step: "04",
-                title: "Монтаж",
-                desc: "Бережно доставляем и профессионально монтируем готовую конструкцию.",
-              },
-            ].map((item, idx) => (
+            {processList.map((item, idx) => (
               <Grid.Col span={{ base: 12, sm: 6, md: 3 }} key={idx}>
                 <Paper
                   p="xl"
@@ -833,10 +859,10 @@ export default function Home() {
                 Умный расчет
               </Badge>
               <Title order={2} mb="md" style={{ color: "#1B2E3D", fontSize: "36px" }}>
-                Смета проекта
+                {pageData.Calculator?.title || "Смета проекта"}
               </Title>
               <Text c="dimmed" mb="xl" lh={1.6}>
-                Выберите параметры для предварительного расчета. Окончательная стоимость формируется после замера.
+                {pageData.Calculator?.subtitle || "Выберите параметры для предварительного расчета. Окончательная стоимость формируется после замера."}
               </Text>
 
               <Paper
@@ -1095,7 +1121,7 @@ export default function Home() {
         <Container size="md">
           <Center mb={60}>
             <Title order={2} style={{ color: "#1B2E3D", fontSize: "36px" }}>
-              Частые вопросы
+              {pageData.Faq?.title || "Частые вопросы"}
             </Title>
           </Center>
           <Accordion
@@ -1107,24 +1133,7 @@ export default function Home() {
               content: { padding: "0 20px 20px 20px", color: "#666" }
             }}
           >
-            {[
-              {
-                q: "Сколько времени занимает изготовление вывески?",
-                a: "Сроки зависят от сложности проекта. Стандартные лайтбоксы и баннеры мы изготавливаем от 1 до 3 рабочих дней. Сложные объемные буквы и крышные установки — от 5 до 10 дней.",
-              },
-              {
-                q: "Даете ли вы гарантию на работу?",
-                a: "Да, мы предоставляем официальную гарантию от 1 года на все световые элементы (диоды, блоки питания) и несущие металлоконструкции.",
-              },
-              {
-                q: "Выезжаете ли вы на замер бесплатно?",
-                a: "Да, выезд инженера-замерщика по городу Алматы осуществляется абсолютно бесплатно. Специалист оценит фасад, сделает точные замеры и проконсультирует по материалам.",
-              },
-              {
-                q: "Делаете ли вы согласование вывесок с акиматом?",
-                a: "Да, наша компания может взять на себя все бюрократические вопросы по получению разрешительных документов на размещение наружной рекламы в архитектуре города.",
-              },
-            ].map((faq, idx) => (
+            {faqList.map((faq, idx) => (
               <Accordion.Item value={`faq-${idx}`} key={idx}>
                 <Accordion.Control>{faq.q}</Accordion.Control>
                 <Accordion.Panel>
@@ -1146,10 +1155,10 @@ export default function Home() {
             <Grid.Col span={{ base: 12, md: 5 }}>
               <Badge color="gray" variant="light" mb="md" radius="sm">Контакты</Badge>
               <Title order={2} style={{ color: "white", fontSize: "36px" }} mb="xl">
-                Обсудим ваш проект?
+                {pageData.Contacts?.title || "Обсудим ваш проект?"}
               </Title>
               <Text style={{ color: "rgba(255,255,255,0.7)" }} mb="xl" lh={1.6} size="lg">
-                Оставьте заявку, и наш специалист свяжется с вами для подробной и бесплатной консультации.
+                {pageData.Contacts?.subtitle || "Оставьте заявку, и наш специалист свяжется с вами для подробной и бесплатной консультации."}
               </Text>
 
               <Stack gap="xl" mt={50}>

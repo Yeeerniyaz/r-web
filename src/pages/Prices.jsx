@@ -20,6 +20,9 @@ import {
   Select,
   Box,
   Divider,
+  Card, // 🔥 SENIOR ADD: Для карточек аналитики
+  ThemeIcon, // 🔥 SENIOR ADD: Для иконок аналитики
+  CloseButton, // 🔥 SENIOR ADD: Для очистки поиска
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
@@ -32,6 +35,9 @@ import {
   IconSearch,
   IconArrowsSort,
   IconTags,
+  IconListCheck, // 🔥 Новые иконки
+  IconTrendingUp,
+  IconCalculator,
 } from "@tabler/icons-react";
 
 // 🔥 Senior Update: Импортируем готовые методы из нового axios.js
@@ -110,6 +116,17 @@ export default function Prices() {
       if (sortBy === "PRICE_ASC") return (a.price || 0) - (b.price || 0);
       return 0;
     });
+
+  // ==========================================
+  // 🔥 SENIOR FEATURE: АНАЛИТИКА ПРАЙС-ЛИСТА
+  // ==========================================
+  const totalItems = prices.length;
+  const avgPrice = totalItems > 0 
+    ? Math.round(prices.reduce((acc, curr) => acc + curr.price, 0) / totalItems) 
+    : 0;
+  const maxPriceItem = totalItems > 0 
+    ? [...prices].sort((a, b) => b.price - a.price)[0] 
+    : null;
 
   // ==========================================
   // БИЗНЕС-ЛОГИКА: ОТКРЫТИЕ МОДАЛКИ
@@ -243,11 +260,80 @@ export default function Prices() {
       )}
 
       {/* ========================================== */}
+      {/* 🔥 SENIOR: КАРТОЧКИ СТАТИСТИКИ */}
+      {/* ========================================== */}
+      {!loading && !error && prices.length > 0 && (
+        <Grid mb="xl">
+          <Grid.Col span={{ base: 12, sm: 4 }}>
+            <Card withBorder radius="md" p="md" shadow="sm" style={{ borderLeft: "4px solid #1B2E3D" }}>
+              <Group justify="space-between">
+                <Group>
+                  <ThemeIcon color="dark" variant="light" size={48} radius="md">
+                    <IconListCheck size={24} />
+                  </ThemeIcon>
+                  <div>
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                      Всего позиций
+                    </Text>
+                    <Title order={3} style={{ color: "#1B2E3D" }}>
+                      {totalItems} шт.
+                    </Title>
+                  </div>
+                </Group>
+              </Group>
+            </Card>
+          </Grid.Col>
+
+          <Grid.Col span={{ base: 12, sm: 4 }}>
+            <Card withBorder radius="md" p="md" shadow="sm" style={{ borderLeft: "4px solid #40c057" }}>
+              <Group justify="space-between">
+                <Group>
+                  <ThemeIcon color="green" variant="light" size={48} radius="md">
+                    <IconCalculator size={24} />
+                  </ThemeIcon>
+                  <div>
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                      Средняя цена по базе
+                    </Text>
+                    <Title order={3} style={{ color: "#1B2E3D" }}>
+                      {avgPrice.toLocaleString("ru-RU")} ₸
+                    </Title>
+                  </div>
+                </Group>
+              </Group>
+            </Card>
+          </Grid.Col>
+
+          <Grid.Col span={{ base: 12, sm: 4 }}>
+            <Card withBorder radius="md" p="md" shadow="sm" style={{ borderLeft: "4px solid #FF8C00" }}>
+              <Group justify="space-between">
+                <Group wrap="nowrap">
+                  <ThemeIcon color="orange" variant="light" size={48} radius="md">
+                    <IconTrendingUp size={24} />
+                  </ThemeIcon>
+                  <div style={{ overflow: "hidden" }}>
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                      Самая дорогая позиция
+                    </Text>
+                    <Text fw={700} size="lg" style={{ color: "#1B2E3D" }}>
+                      {maxPriceItem?.price.toLocaleString("ru-RU")} ₸
+                    </Text>
+                    <Text size="xs" c="dimmed" lineClamp={1}>
+                      {maxPriceItem?.service}
+                    </Text>
+                  </div>
+                </Group>
+              </Group>
+            </Card>
+          </Grid.Col>
+        </Grid>
+      )}
+
+      {/* ========================================== */}
       {/* ПАНЕЛЬ ФИЛЬТРОВ И СОРТИРОВКИ */}
       {/* ========================================== */}
       <Paper withBorder p="md" radius="md" mb="xl" bg="white" shadow="sm">
         <Grid align="flex-end">
-          {/* 🔥 SENIOR FIX: Сделано sm: 6 для хорошего отображения на планшетах */}
           <Grid.Col span={{ base: 12, sm: 6 }}>
             <TextInput
               label="Поиск по прайс-листу"
@@ -256,6 +342,16 @@ export default function Prices() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.currentTarget.value)}
               styles={{ label: { color: "#1B2E3D", fontWeight: 600 } }}
+              // 🔥 SENIOR FIX: Кнопка очистки поиска
+              rightSection={
+                searchTerm && (
+                  <CloseButton
+                    aria-label="Очистить поиск"
+                    onClick={() => setSearchTerm("")}
+                    style={{ display: "block" }}
+                  />
+                )
+              }
             />
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 6 }}>
@@ -292,7 +388,51 @@ export default function Prices() {
             <Skeleton height={40} mb="sm" />
             <Skeleton height={40} />
           </div>
-        ) : processedPrices.length > 0 ? (
+        ) : prices.length === 0 ? (
+          // 🔥 SENIOR FIX: Состояние, когда в БАЗЕ ДАННЫХ ничего нет
+          <Center
+            style={{
+              padding: "60px 20px",
+              flexDirection: "column",
+              textAlign: "center",
+            }}
+          >
+            <IconReportMoney size={48} color="#e0e0e0" stroke={1.5} />
+            <Text size="lg" fw={500} mt="md" style={{ color: "#1B2E3D" }}>
+              Прайс-лист пуст
+            </Text>
+            <Text c="dimmed" mt={5}>
+              Добавьте новые услуги, чтобы калькулятор на сайте заработал.
+            </Text>
+            <Button
+              mt="md"
+              style={{ backgroundColor: "#1B2E3D", color: "#ffffff" }}
+              onClick={() => handleOpenModal()}
+            >
+              Добавить первую услугу
+            </Button>
+          </Center>
+        ) : processedPrices.length === 0 ? (
+          // 🔥 SENIOR FIX: Состояние, когда ПОИСК ничего не нашел
+          <Center
+            style={{
+              padding: "60px 20px",
+              flexDirection: "column",
+              textAlign: "center",
+            }}
+          >
+            <IconSearch size={48} color="#e0e0e0" stroke={1.5} />
+            <Text size="lg" fw={500} mt="md" style={{ color: "#1B2E3D" }}>
+              Ничего не найдено
+            </Text>
+            <Text c="dimmed" mt={5}>
+              По запросу "{searchTerm}" нет позиций в прайс-листе.
+            </Text>
+            <Button mt="md" variant="default" onClick={() => setSearchTerm("")}>
+              Сбросить поиск
+            </Button>
+          </Center>
+        ) : (
           <>
             {/* 🔥 ДЕСКТОПНАЯ ВЕРСИЯ: ТАБЛИЦА (Скрывается на мобильных) */}
             <Box visibleFrom="sm" style={{ overflowX: "auto" }}>
@@ -440,39 +580,6 @@ export default function Prices() {
               </Stack>
             </Box>
           </>
-        ) : (
-          <Center
-            style={{
-              padding: "60px 20px",
-              flexDirection: "column",
-              textAlign: "center",
-            }}
-          >
-            <IconReportMoney size={48} color="#e0e0e0" stroke={1.5} />
-            <Text size="lg" fw={500} mt="md" style={{ color: "#1B2E3D" }}>
-              Прайс-лист пуст
-            </Text>
-            <Text c="dimmed" mt={5}>
-              Добавьте новые услуги, чтобы калькулятор на сайте заработал.
-            </Text>
-            <Group mt="md">
-              <Button
-                variant="default"
-                onClick={() => {
-                  setSearchTerm("");
-                  setSortBy("NAME_ASC");
-                }}
-              >
-                Сбросить фильтры
-              </Button>
-              <Button
-                style={{ backgroundColor: "#FF8C00", color: "#1B2E3D" }}
-                onClick={() => handleOpenModal()}
-              >
-                Добавить услугу
-              </Button>
-            </Group>
-          </Center>
         )}
       </Paper>
 
@@ -532,8 +639,8 @@ export default function Prices() {
                 type="submit"
                 loading={isSubmitting}
                 style={{
-                  backgroundColor: "#FF8C00",
-                  color: "#1B2E3D",
+                  backgroundColor: "#1B2E3D",
+                  color: "#ffffff",
                   fontWeight: 700,
                 }}
               >

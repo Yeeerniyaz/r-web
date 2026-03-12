@@ -15,6 +15,7 @@ import {
   Text,
   Center,
   Image,
+  ScrollArea,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
@@ -26,6 +27,9 @@ import {
   IconReportMoney,
   IconWallet,
   IconSettings,
+  IconFolder,
+  IconHistory,
+  IconAppWindow,
 } from "@tabler/icons-react";
 
 // ==========================================
@@ -42,13 +46,13 @@ import Prices from "./pages/Prices.jsx";
 import Finance from "./pages/Finance.jsx";
 import CalculatorSettings from "./pages/CalculatorSettings.jsx";
 import PublicPortfolio from "./pages/PublicPortfolio.jsx";
-import PageBuilder from "./pages/PageBuilder";
-
-// Внутри твоих роутов
+import PageBuilder from "./pages/PageBuilder.jsx";
+import MediaLibrary from "./pages/Media.jsx";
+import AuditLogs from "./pages/Audit.jsx";
 
 // ==========================================
 // СЕНЬОРСКАЯ АРХИТЕКТУРА: ИЗОЛИРОВАННАЯ АДМИНКА
-// Этот Layout загружается ТОЛЬКО если пользователь авторизован и зашел на /admin
+// Загружается ТОЛЬКО на домене rukb.yeee.kz
 // ==========================================
 const AdminLayout = () => {
   const [opened, { toggle }] = useDisclosure();
@@ -56,11 +60,11 @@ const AdminLayout = () => {
   const location = useLocation();
 
   const handleLogout = () => {
-    // 🔥 FIX: Удаляем правильные ключи из локального хранилища
+    // Очищаем сессию
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    // При выходе жестко выкидываем на публичную главную страницу к клиентам
-    window.location.href = "/";
+    // Выкидываем на страницу логина
+    window.location.href = "/login";
   };
 
   return (
@@ -88,7 +92,7 @@ const AdminLayout = () => {
             <Group
               gap="sm"
               style={{ cursor: "pointer" }}
-              onClick={() => navigate("/admin")}
+              onClick={() => navigate("/")}
             >
               <Center
                 bg="#1B2E3D"
@@ -126,102 +130,135 @@ const AdminLayout = () => {
       </AppShell.Header>
 
       {/* ========================================== */}
-      {/* БОКОВОЕ МЕНЮ АДМИНКИ */}
+      {/* БОКОВОЕ МЕНЮ АДМИНКИ (СО СКОРЛЛОМ) */}
       {/* ========================================== */}
       <AppShell.Navbar
         p="md"
         style={{ fontFamily: '"Google Sans", sans-serif' }}
       >
-        <NavLink
-          label="Дашборд"
-          leftSection={<IconDashboard size="1.1rem" stroke={1.5} />}
-          onClick={() => {
-            navigate("/admin");
-            toggle();
-          }}
-          color="royalBlue"
-          variant="light"
-          active={
-            location.pathname === "/admin" || location.pathname === "/admin/"
-          }
-        />
-        <NavLink
-          label="Заказы"
-          leftSection={<IconShoppingCart size="1.1rem" stroke={1.5} />}
-          onClick={() => {
-            navigate("/admin/orders");
-            toggle();
-          }}
-          color="royalBlue"
-          variant="light"
-          active={location.pathname === "/admin/orders"}
-        />
-        <NavLink
-          label="Финансы"
-          leftSection={<IconWallet size="1.1rem" stroke={1.5} />}
-          onClick={() => {
-            navigate("/admin/finance");
-            toggle();
-          }}
-          color="royalBlue"
-          variant="light"
-          active={location.pathname === "/admin/finance"}
-        />
-        <NavLink
-          label="Прайс-лист"
-          leftSection={<IconReportMoney size="1.1rem" stroke={1.5} />}
-          onClick={() => {
-            navigate("/admin/prices");
-            toggle();
-          }}
-          color="royalBlue"
-          variant="light"
-          active={location.pathname === "/admin/prices"}
-        />
-        <NavLink
-          label="Калькулятор"
-          leftSection={<IconSettings size="1.1rem" stroke={1.5} />}
-          onClick={() => {
-            navigate("/admin/calculator-settings");
-            toggle();
-          }}
-          color="royalBlue"
-          variant="light"
-          active={location.pathname === "/admin/calculator-settings"}
-        />
-        <NavLink
-          label="Портфолио"
-          leftSection={<IconPhoto size="1.1rem" stroke={1.5} />}
-          onClick={() => {
-            navigate("/admin/portfolio");
-            toggle();
-          }}
-          color="royalBlue"
-          variant="light"
-          active={location.pathname === "/admin/portfolio"}
-        />
-        <NavLink
-          label="Сотрудники"
-          leftSection={<IconUsers size="1.1rem" stroke={1.5} />}
-          onClick={() => {
-            navigate("/admin/users");
-            toggle();
-          }}
-          color="royalBlue"
-          variant="light"
-          active={location.pathname === "/admin/users"}
-        />
-        <NavLink
-          label="Страница"
-          leftSection={<IconUsers size="1.1rem" stroke={1.5} />}
-          onClick={() => {
-            navigate("/admin/cms");
-            toggle();
-          }}
-          color="royalBlue"
-          variant="light"
-          active={location.pathname === "/admin/cms"}
-        />
+        <AppShell.Section grow component={ScrollArea}>
+          <Text c="dimmed" size="xs" fw={700} mb="sm" mt="md" tt="uppercase">
+            Бизнес
+          </Text>
+          <NavLink
+            label="Дашборд"
+            leftSection={<IconDashboard size="1.1rem" stroke={1.5} />}
+            onClick={() => {
+              navigate("/");
+              toggle();
+            }}
+            color="royalBlue"
+            variant="light"
+            active={location.pathname === "/"}
+          />
+          <NavLink
+            label="Заказы"
+            leftSection={<IconShoppingCart size="1.1rem" stroke={1.5} />}
+            onClick={() => {
+              navigate("/orders");
+              toggle();
+            }}
+            color="royalBlue"
+            variant="light"
+            active={location.pathname === "/orders"}
+          />
+          <NavLink
+            label="Финансы"
+            leftSection={<IconWallet size="1.1rem" stroke={1.5} />}
+            onClick={() => {
+              navigate("/finance");
+              toggle();
+            }}
+            color="royalBlue"
+            variant="light"
+            active={location.pathname === "/finance"}
+          />
+          <NavLink
+            label="Прайс-лист"
+            leftSection={<IconReportMoney size="1.1rem" stroke={1.5} />}
+            onClick={() => {
+              navigate("/prices");
+              toggle();
+            }}
+            color="royalBlue"
+            variant="light"
+            active={location.pathname === "/prices"}
+          />
+
+          <Text c="dimmed" size="xs" fw={700} mb="sm" mt="xl" tt="uppercase">
+            Контент (CMS)
+          </Text>
+          <NavLink
+            label="Конструктор страниц"
+            leftSection={<IconAppWindow size="1.1rem" stroke={1.5} />}
+            onClick={() => {
+              navigate("/cms");
+              toggle();
+            }}
+            color="royalBlue"
+            variant="light"
+            active={location.pathname === "/cms"}
+          />
+          <NavLink
+            label="Портфолио"
+            leftSection={<IconPhoto size="1.1rem" stroke={1.5} />}
+            onClick={() => {
+              navigate("/portfolio");
+              toggle();
+            }}
+            color="royalBlue"
+            variant="light"
+            active={location.pathname === "/portfolio"}
+          />
+          <NavLink
+            label="Медиабиблиотека"
+            leftSection={<IconFolder size="1.1rem" stroke={1.5} />}
+            onClick={() => {
+              navigate("/media");
+              toggle();
+            }}
+            color="royalBlue"
+            variant="light"
+            active={location.pathname === "/media"}
+          />
+
+          <Text c="dimmed" size="xs" fw={700} mb="sm" mt="xl" tt="uppercase">
+            Система
+          </Text>
+          <NavLink
+            label="Калькулятор"
+            leftSection={<IconSettings size="1.1rem" stroke={1.5} />}
+            onClick={() => {
+              navigate("/calculator-settings");
+              toggle();
+            }}
+            color="royalBlue"
+            variant="light"
+            active={location.pathname === "/calculator-settings"}
+          />
+          <NavLink
+            label="Сотрудники"
+            leftSection={<IconUsers size="1.1rem" stroke={1.5} />}
+            onClick={() => {
+              navigate("/users");
+              toggle();
+            }}
+            color="royalBlue"
+            variant="light"
+            active={location.pathname === "/users"}
+          />
+          <NavLink
+            label="Журнал аудита"
+            leftSection={<IconHistory size="1.1rem" stroke={1.5} />}
+            onClick={() => {
+              navigate("/audit");
+              toggle();
+            }}
+            color="royalBlue"
+            variant="light"
+            active={location.pathname === "/audit"}
+          />
+        </AppShell.Section>
       </AppShell.Navbar>
 
       {/* ========================================== */}
@@ -237,7 +274,11 @@ const AdminLayout = () => {
           <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/users" element={<Users />} />
           <Route path="/cms" element={<PageBuilder />} />
-          <Route path="*" element={<Navigate to="/admin" replace />} />
+          <Route path="/media" element={<MediaLibrary />} />
+          <Route path="/audit" element={<AuditLogs />} />
+
+          {/* Если ввели несуществующий путь в админке — на дашборд */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AppShell.Main>
     </AppShell>
@@ -248,34 +289,46 @@ const AdminLayout = () => {
 // ГЛАВНЫЙ РОУТЕР ПРИЛОЖЕНИЯ
 // ==========================================
 export default function App() {
-  // 🔥 FIX: Ищем правильный ключ 'token', а не старый 'royal_token'
   const token = localStorage.getItem("token");
   const isAuthenticated = !!token;
 
+  // 🔥 SENIOR DOMAIN ROUTING
+  const currentHost = window.location.hostname;
+  
+  // Проверяем домен. Если rukb.yeee.kz (или localhost для разработки) - отдаем админку
+  const isAdminDomain = currentHost === "rukb.yeee.kz" || currentHost === "localhost" || currentHost.startsWith("192.168.");
+
+  // =======================================
+  // СЦЕНАРИЙ 1: АДМИНКА (rukb.yeee.kz)
+  // =======================================
+  if (isAdminDomain) {
+    return (
+      <Routes>
+        <Route
+          path="/login"
+          element={!isAuthenticated ? <Login /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/*"
+          element={
+            isAuthenticated ? <AdminLayout /> : <Navigate to="/login" replace />
+          }
+        />
+      </Routes>
+    );
+  }
+
+  // =======================================
+  // СЦЕНАРИЙ 2: ВИТРИНА (ukb.yeee.kz)
+  // =======================================
   return (
     <Routes>
-      {/* 1. ПУБЛИЧНАЯ ЗОНА (Доступна всем клиентам) */}
+      {/* ПУБЛИЧНАЯ ЗОНА (Доступна всем клиентам) */}
       <Route path="/" element={<Home />} />
       <Route path="/category/:id" element={<Category />} />
       <Route path="/portfolio" element={<PublicPortfolio />} />
 
-      {/* 2. АВТОРИЗАЦИЯ */}
-      <Route
-        path="/login"
-        element={
-          !isAuthenticated ? <Login /> : <Navigate to="/admin" replace />
-        }
-      />
-
-      {/* 3. ПРИВАТНАЯ ЗОНА (Админка, защищена проверкой токена) */}
-      <Route
-        path="/admin/*"
-        element={
-          isAuthenticated ? <AdminLayout /> : <Navigate to="/login" replace />
-        }
-      />
-
-      {/* 4. ОБРАБОТКА ОШИБОК 404 */}
+      {/* Защита: если на клиенте попытаются открыть несуществующую страницу - кидаем на главную */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -21,11 +21,13 @@ import {
   Center,
   Stack,
   Box,
+  Switch, // 🔥 Добавлен Switch для управления видимостью
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
   IconPlus,
   IconTrash,
+  IconEdit, // 🔥 Добавлена иконка редактирования
   IconAlertCircle,
   IconRefresh,
   IconUpload,
@@ -37,12 +39,14 @@ import {
   IconX,
   IconChevronLeft,
   IconChevronRight,
+  IconEyeOff,
 } from "@tabler/icons-react";
 
-// 🔥 Senior Update: Импортируем готовые методы из нового axios.js
+// 🔥 Senior Update: Импортируем методы, включая updatePortfolioItem
 import {
   fetchPortfolio as apiFetchPortfolio,
   addPortfolio as apiAddPortfolio,
+  updatePortfolioItem as apiUpdatePortfolioItem,
   deletePortfolioItem as apiDeletePortfolioItem,
 } from "../api/axios.js";
 
@@ -62,14 +66,17 @@ export default function Portfolio() {
   const [sortBy, setSortBy] = useState("NEWEST");
 
   // ==========================================
-  // СОСТОЯНИЯ МОДАЛЬНОГО ОКНА (ДОБАВЛЕНИЕ)
+  // СОСТОЯНИЯ МОДАЛЬНОГО ОКНА (ДОБАВЛЕНИЕ / РЕДАКТИРОВАНИЕ)
   // ==========================================
   const [opened, { open, close }] = useDisclosure(false);
+  const [editingId, setEditingId] = useState(null); // 🔥 Отслеживаем, редактируем или создаем
+
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
+  const [isVisible, setIsVisible] = useState(true); // 🔥 Состояние видимости
 
-  // Массив для хранения нескольких файлов
+  // Массив для хранения новых файлов (при создании или добавлении к существующим)
   const [files, setFiles] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -90,7 +97,7 @@ export default function Portfolio() {
   ];
 
   // ==========================================
-  // БИЗНЕС-ЛОГИКА: ЗАГРУЗКА ПОРТФОЛИО (REAL DATA)
+  // БИЗНЕС-ЛОГИКА: ЗАГРУЗКА ПОРТФОЛИО
   // ==========================================
   const fetchPortfolio = async () => {
     try {
@@ -102,7 +109,7 @@ export default function Portfolio() {
       console.error("Ошибка загрузки портфолио:", err);
       setItems([]);
       setError(
-        "Не удалось загрузить список работ. Проверьте соединение с сервером.",
+        "Не удалось загрузить список работ. Проверьте соединение с сервером."
       );
     } finally {
       setLoading(false);
@@ -141,35 +148,66 @@ export default function Portfolio() {
     });
 
   // ==========================================
-  // БИЗНЕС-ЛОГИКА: ДОБАВЛЕНИЕ НОВОЙ РАБОТЫ
+  // БИЗНЕС-ЛОГИКА: УПРАВЛЕНИЕ ФОРМОЙ (CREATE / UPDATE)
   // ==========================================
-  const handleCreate = async (e) => {
+  const handleOpenModal = (item = null) => {
+    if (item) {
+      // Режим редактирования
+      setEditingId(item.id);
+      setTitle(item.title || "");
+      setCategory(item.category?.toLowerCase().replace("_", "-") || "");
+      setDescription(item.description || "");
+      setIsVisible(item.isVisible !== false);
+      setFiles([]);
+    } else {
+      // Режим создания
+      setEditingId(null);
+      setTitle("");
+      setCategory("");
+      setDescription("");
+      setIsVisible(true);
+      setFiles([]);
+    }
+    open();
+  };
+
+  const handleSave = async (e) => {
     e.preventDefault();
-    if (!title || !category || files.length === 0) return;
+    if (!title || !category) return;
 
     setIsSubmitting(true);
     const formData = new FormData();
     formData.append("title", title);
     formData.append("category", category);
     formData.append("description", description);
+    formData.append("isVisible", isVisible);
 
+    // Добавляем новые файлы (если они есть)
     files.forEach((file) => {
       formData.append("images", file);
     });
 
     try {
-      await apiAddPortfolio(formData);
-      setTitle("");
-      setCategory("");
-      setDescription("");
-      setFiles([]);
+      if (editingId) {
+        // Обновляем существующий проект
+        await apiUpdatePortfolioItem(editingId, formData);
+      } else {
+        // Проверка: для нового проекта нужна хотя бы 1 картинка
+        if (files.length === 0) {
+          alert("Для новой работы необходимо загрузить хотя бы 1 фотографию!");
+          setIsSubmitting(false);
+          return;
+        }
+        await apiAddPortfolio(formData);
+      }
+      
       close();
       fetchPortfolio();
     } catch (err) {
-      console.error("Ошибка при создании работы:", err);
+      console.error("Ошибка при сохранении работы:", err);
       alert(
         err.response?.data?.message ||
-          "Ошибка при загрузке работы в облако. Возможно, файлы слишком большие.",
+          "Ошибка при сохранении данных. Возможно, файлы слишком большие."
       );
     } finally {
       setIsSubmitting(false);
@@ -192,7 +230,7 @@ export default function Portfolio() {
       console.error("Ошибка при удалении:", err);
       alert(
         err.response?.data?.message ||
-          "Не удалось удалить работу. Убедитесь, что у вас есть права Администратора.",
+          "Не удалось удалить работу. Убедитесь, что у вас есть права Администратора."
       );
     }
   };
@@ -236,13 +274,13 @@ export default function Portfolio() {
 
   const handleNext = useCallback(() => {
     setCurrentImageIndex((prev) =>
-      prev === lightboxImages.length - 1 ? 0 : prev + 1,
+      prev === lightboxImages.length - 1 ? 0 : prev + 1
     );
   }, [lightboxImages.length]);
 
   const handlePrev = useCallback(() => {
     setCurrentImageIndex((prev) =>
-      prev === 0 ? lightboxImages.length - 1 : prev - 1,
+      prev === 0 ? lightboxImages.length - 1 : prev - 1
     );
   }, [lightboxImages.length]);
 
@@ -288,7 +326,7 @@ export default function Portfolio() {
 
           <Button
             leftSection={<IconPlus size={16} />}
-            onClick={open}
+            onClick={() => handleOpenModal()}
             style={{
               backgroundColor: "#1B2E3D",
               color: "white",
@@ -385,8 +423,9 @@ export default function Portfolio() {
                     height: "100%",
                     display: "flex",
                     flexDirection: "column",
-                    cursor: "pointer", // Указываем, что карточка кликабельна
+                    cursor: "pointer",
                     transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                    opacity: item.isVisible === false ? 0.7 : 1, // Немного тусклее, если скрыто
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = "translateY(-4px)";
@@ -398,7 +437,7 @@ export default function Portfolio() {
                     e.currentTarget.style.boxShadow =
                       "var(--mantine-shadow-sm)";
                   }}
-                  onClick={() => handleItemClick(item)} // Открываем лайтбокс при клике
+                  onClick={() => handleItemClick(item)}
                 >
                   <Card.Section
                     style={{ position: "relative", overflow: "hidden" }}
@@ -416,6 +455,8 @@ export default function Portfolio() {
                         (e.currentTarget.style.transform = "scale(1)")
                       }
                     />
+                    
+                    {/* Бейдж категории */}
                     <Badge
                       variant="filled"
                       style={{
@@ -428,7 +469,7 @@ export default function Portfolio() {
                       {getCategoryLabel(item.category)}
                     </Badge>
 
-                    {/* Иконка лупы по центру при наведении (опционально, для красоты) */}
+                    {/* 🔥 Иконка лупы по центру */}
                     <div
                       style={{
                         position: "absolute",
@@ -442,6 +483,23 @@ export default function Portfolio() {
                     >
                       <IconZoomIn color="white" size={16} />
                     </div>
+
+                    {/* 🔥 Бейдж, если работа скрыта */}
+                    {item.isVisible === false && (
+                      <Badge
+                        color="red"
+                        variant="filled"
+                        leftSection={<IconEyeOff size={12} />}
+                        style={{
+                          position: "absolute",
+                          top: 45,
+                          left: 10,
+                          boxShadow: "0 2px 10px rgba(0,0,0,0.3)",
+                        }}
+                      >
+                        Скрыто
+                      </Badge>
+                    )}
 
                     {imgCount > 1 && (
                       <Badge
@@ -476,20 +534,33 @@ export default function Portfolio() {
                     </Text>
                   </Box>
 
-                  <Button
-                    variant="light"
-                    color="red"
-                    fullWidth
-                    mt="md"
-                    radius="md"
-                    leftSection={<IconTrash size={16} />}
-                    onClick={(e) => {
-                      e.stopPropagation(); // ВАЖНО: останавливаем клик, чтобы не открылся лайтбокс
-                      handleDelete(item.id);
-                    }}
-                  >
-                    Удалить
-                  </Button>
+                  {/* 🔥 SENIOR UPDATE: Группа кнопок Редактировать / Удалить */}
+                  <Group grow mt="md">
+                    <Button
+                      variant="light"
+                      color="blue"
+                      radius="md"
+                      leftSection={<IconEdit size={16} />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenModal(item);
+                      }}
+                    >
+                      Изменить
+                    </Button>
+                    <Button
+                      variant="light"
+                      color="red"
+                      radius="md"
+                      leftSection={<IconTrash size={16} />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(item.id);
+                      }}
+                    >
+                      Удалить
+                    </Button>
+                  </Group>
                 </Card>
               </Grid.Col>
             );
@@ -511,7 +582,7 @@ export default function Portfolio() {
               <Button
                 mt="lg"
                 style={{ backgroundColor: "#1B2E3D" }}
-                onClick={open}
+                onClick={() => handleOpenModal()}
               >
                 Загрузить работу
               </Button>
@@ -533,22 +604,31 @@ export default function Portfolio() {
       )}
 
       {/* ========================================== */}
-      {/* МОДАЛЬНОЕ ОКНО СОЗДАНИЯ РАБОТЫ */}
+      {/* МОДАЛЬНОЕ ОКНО СОЗДАНИЯ / РЕДАКТИРОВАНИЯ */}
       {/* ========================================== */}
       <Modal
         opened={opened}
         onClose={close}
         title={
           <Title order={3} style={{ color: "#1B2E3D" }}>
-            Новая работа
+            {editingId ? "Редактировать работу" : "Новая работа"}
           </Title>
         }
         size="lg"
         centered
         overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
       >
-        <form onSubmit={handleCreate}>
+        <form onSubmit={handleSave}>
           <Stack gap="md">
+            
+            {/* 🔥 SENIOR UPDATE: Управление видимостью */}
+            <Switch
+              label={<Text fw={600} style={{ color: "#1B2E3D" }}>Показывать в публичном портфолио</Text>}
+              checked={isVisible}
+              onChange={(e) => setIsVisible(e.currentTarget.checked)}
+              color="teal"
+            />
+
             <TextInput
               label="Название проекта"
               placeholder="Например: Световая вывеска для ресторана"
@@ -569,9 +649,9 @@ export default function Portfolio() {
             />
 
             <FileInput
-              label="Фотографии работы (можно выбрать несколько)"
-              placeholder="Нажмите, чтобы выбрать файлы (до 10 шт)"
-              required
+              label={editingId ? "Добавить новые фотографии (опционально)" : "Фотографии работы (можно выбрать несколько)"}
+              placeholder={editingId ? "Нажмите для дозагрузки фото (старые сохранятся)" : "Нажмите, чтобы выбрать файлы (до 10 шт)"}
+              required={!editingId} // В режиме редактирования фото можно не загружать
               multiple
               clearable
               accept="image/png,image/jpeg,image/webp"

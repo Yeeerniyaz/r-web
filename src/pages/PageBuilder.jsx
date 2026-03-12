@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import {
-  Container,
   Title,
   Text,
   Button,
@@ -13,86 +12,52 @@ import {
   Loader,
   Center,
   Modal,
-  Select,
   Switch,
-  JsonInput,
+  TextInput,
+  Textarea,
+  FileInput,
   Paper,
+  Tooltip,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
-  IconPlus,
-  IconTrash,
   IconEdit,
-  IconArrowUp,
-  IconArrowDown,
   IconEye,
   IconEyeOff,
-  IconLayoutBoard,
+  IconUpload,
+  IconRefresh,
+  IconAppWindow,
 } from "@tabler/icons-react";
-import api from "../api/axios.js";
+
+// Импортируем готовые методы API из шлюза
+import api, {
+  fetchAdminBlocks as apiFetchAdminBlocks,
+  updatePageBlock as apiUpdatePageBlock,
+} from "../api/axios.js";
 
 // ==========================================
-// ШАБЛОНЫ ДАННЫХ ДЛЯ НОВЫХ БЛОКОВ
-// ==========================================
-const DEFAULT_DATA_TEMPLATES = {
-  Hero: {
-    badgeText: "Собственное производство в Алматы",
-    title: "РЕКЛАМА,\nКОТОРАЯ\nПРИНОСИТ ДЕНЬГИ",
-    subtitle: "Изготавливаем вывески, лайтбоксы и металлоконструкции премиум-класса. Даем гарантию до 2 лет и монтируем точно в срок.",
-  },
-  Catalog: {
-    title: "Наши возможности",
-  },
-  Stats: {
-    items: [
-      { count: "100%", text: "Контроль качества" },
-      { count: "0 ₸", text: "Выезд на замер" },
-      { count: "12 мес", text: "Гарантия на работы" },
-      { count: "24/7", text: "Прием заявок" },
-    ],
-  },
-  WorkProcess: {
-    badgeText: "Прозрачный процесс",
-    title: "Как мы работаем",
-    items: [
-      { step: "01", title: "Заявка", desc: "Оставляете заявку" },
-      { step: "02", title: "Смета", desc: "Считаем проект" },
-      { step: "03", title: "Производство", desc: "Делаем вывеску" },
-      { step: "04", title: "Монтаж", desc: "Устанавливаем на объекте" },
-    ],
-  },
-  Calculator: {
-    title: "Смета проекта",
-    subtitle: "Выберите параметры для предварительного расчета.",
-  },
-  Faq: {
-    title: "Частые вопросы",
-    items: [
-      { q: "Сроки?", a: "От 1 до 3 рабочих дней." },
-      { q: "Гарантия?", a: "1 год на всю электронику." },
-    ],
-  },
-  Contacts: {
-    title: "Обсудим ваш проект?",
-    subtitle: "Оставьте заявку, и наш специалист свяжется с вами.",
-  },
-};
-
-const BLOCK_TYPES = Object.keys(DEFAULT_DATA_TEMPLATES);
-
-// ==========================================
-// ГЛАВНЫЙ КОМПОНЕНТ: КОНСТРУКТОР СТРАНИЦ
+// ГЛАВНЫЙ КОМПОНЕНТ: РЕДАКТОР КОНТЕНТА
 // ==========================================
 export default function PageBuilder() {
   const [blocks, setBlocks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Модалка для редактирования/создания
+  // Модалка для редактирования
   const [opened, { open, close }] = useDisclosure(false);
   const [editingBlock, setEditingBlock] = useState(null);
-  const [formData, setFormData] = useState({ type: "Hero", data: "{}", isActive: true });
-  const [jsonError, setJsonError] = useState("");
+  
+  // Стейт строго под поля API
+  const [formData, setFormData] = useState({
+    type: "",
+    title: "",
+    subtitle: "",
+    content: "",
+    isActive: true,
+  });
+  
+  // Стейт для загрузки новой картинки
+  const [imageFile, setImageFile] = useState(null);
 
   // ==========================================
   // 1. ЗАГРУЗКА БЛОКОВ
@@ -100,11 +65,12 @@ export default function PageBuilder() {
   const fetchBlocks = async () => {
     try {
       setIsLoading(true);
-      // OWNER видит все блоки (защищенный роут)
-      const res = await api.get("/pages/blocks");
-      if (res.data?.data) {
-        // Сортируем на клиенте на всякий случай
-        const sorted = res.data.data.sort((a, b) => a.order - b.order);
+      const res = await apiFetchAdminBlocks();
+      const fetchedData = res.data?.data || res.data || [];
+      
+      if (Array.isArray(fetchedData)) {
+        // Выводим блоки в том порядке, в котором они были заложены в БД
+        const sorted = [...fetchedData].sort((a, b) => a.order - b.order);
         setBlocks(sorted);
       }
     } catch (error) {
@@ -119,240 +85,161 @@ export default function PageBuilder() {
   }, []);
 
   // ==========================================
-  // 2. ОТКРЫТИЕ МОДАЛКИ (НОВЫЙ ИЛИ РЕДАКТИРОВАНИЕ)
+  // 2. ОТКРЫТИЕ МОДАЛКИ (ТОЛЬКО РЕДАКТИРОВАНИЕ)
   // ==========================================
-  const handleOpenModal = (block = null) => {
-    setJsonError("");
-    if (block) {
-      setEditingBlock(block);
-      setFormData({
-        type: block.type,
-        data: JSON.stringify(block.data, null, 2),
-        isActive: block.isActive,
-      });
-    } else {
-      setEditingBlock(null);
-      setFormData({
-        type: "Hero",
-        data: JSON.stringify(DEFAULT_DATA_TEMPLATES["Hero"], null, 2),
-        isActive: true,
-      });
-    }
+  const handleOpenModal = (block) => {
+    setImageFile(null); // Очищаем файл при открытии
+    setEditingBlock(block);
+    setFormData({
+      type: block.type || "",
+      title: block.title || "",
+      subtitle: block.subtitle || "",
+      content: block.content || "",
+      isActive: block.isActive !== false,
+    });
     open();
-  };
-
-  // Автозаполнение шаблона при смене типа (для новых блоков)
-  const handleTypeChange = (type) => {
-    if (!editingBlock) {
-      setFormData({
-        type,
-        data: JSON.stringify(DEFAULT_DATA_TEMPLATES[type], null, 2),
-        isActive: true,
-      });
-    } else {
-      setFormData({ ...formData, type });
-    }
   };
 
   // ==========================================
   // 3. СОХРАНЕНИЕ БЛОКА
   // ==========================================
   const handleSave = async () => {
+    if (!editingBlock) return;
+
     try {
-      setJsonError("");
       setIsSaving(true);
       
-      // Валидация JSON
-      let parsedData;
-      try {
-        parsedData = JSON.parse(formData.data);
-      } catch (e) {
-        setJsonError("Ошибка формата JSON. Проверьте кавычки и запятые.");
-        setIsSaving(false);
-        return;
+      // Формируем Multipart/Form-Data для бэкенда
+      const submitData = new FormData();
+      submitData.append("type", formData.type);
+      submitData.append("isActive", formData.isActive);
+      
+      if (formData.title) submitData.append("title", formData.title);
+      if (formData.subtitle) submitData.append("subtitle", formData.subtitle);
+      if (formData.content) submitData.append("content", formData.content);
+      
+      // Если пользователь выбрал новую картинку
+      if (imageFile) {
+        submitData.append("image", imageFile);
       }
 
-      if (editingBlock) {
-        // Обновление
-        await api.patch(`/pages/blocks/${editingBlock.id}`, {
-          type: formData.type,
-          data: parsedData,
-          isActive: formData.isActive,
-        });
-      } else {
-        // Создание нового. Ставим его в конец (максимальный order + 1)
-        const maxOrder = blocks.length > 0 ? Math.max(...blocks.map((b) => b.order)) : -1;
-        await api.post("/pages/blocks", {
-          type: formData.type,
-          data: parsedData,
-          isActive: formData.isActive,
-          order: maxOrder + 1,
-        });
-      }
+      // Отправляем изменения на сервер
+      await apiUpdatePageBlock(editingBlock.id, submitData);
 
+      // Обновляем список
       await fetchBlocks();
       close();
     } catch (error) {
       console.error("Ошибка сохранения блока:", error);
+      alert("Не удалось сохранить блок. Проверьте соединение с сервером.");
     } finally {
       setIsSaving(false);
     }
   };
 
   // ==========================================
-  // 4. УДАЛЕНИЕ БЛОКА
-  // ==========================================
-  const handleDelete = async (id) => {
-    if (!window.confirm("Удалить этот блок навсегда?")) return;
-    try {
-      await api.delete(`/pages/blocks/${id}`);
-      setBlocks(blocks.filter((b) => b.id !== id));
-    } catch (error) {
-      console.error("Ошибка удаления:", error);
-    }
-  };
-
-  // ==========================================
-  // 5. БЫСТРОЕ ВКЛ/ВЫКЛ БЛОКА
+  // 4. БЫСТРОЕ ВКЛ/ВЫКЛ БЛОКА (МОМЕНТАЛЬНОЕ СОХРАНЕНИЕ)
   // ==========================================
   const handleToggleActive = async (id, currentStatus) => {
     try {
-      // Оптимистичное обновление UI
+      // 1. Мгновенно меняем UI (Оптимистичный UI-апдейт)
       setBlocks(blocks.map((b) => (b.id === id ? { ...b, isActive: !currentStatus } : b)));
+      
+      // 2. Отправляем запрос в фоне на сохранение
       await api.patch(`/pages/blocks/${id}`, { isActive: !currentStatus });
     } catch (error) {
       console.error("Ошибка переключения статуса:", error);
-      fetchBlocks(); // Откат при ошибке
+      // Если сервер выдал ошибку — откатываем UI обратно
+      fetchBlocks(); 
     }
   };
-
-  // ==========================================
-  // 6. ПЕРЕМЕЩЕНИЕ БЛОКОВ (ВВЕРХ / ВНИЗ)
-  // ==========================================
-  const moveBlock = async (index, direction) => {
-    if (
-      (direction === "up" && index === 0) ||
-      (direction === "down" && index === blocks.length - 1)
-    ) {
-      return;
-    }
-
-    const newBlocks = [...blocks];
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-
-    // Меняем местами локально
-    const temp = newBlocks[index];
-    newBlocks[index] = newBlocks[targetIndex];
-    newBlocks[targetIndex] = temp;
-
-    // Пересчитываем order
-    const reorderedData = newBlocks.map((block, idx) => ({
-      id: block.id,
-      order: idx,
-    }));
-
-    // Обновляем стейт сразу для плавности UI
-    setBlocks(newBlocks.map((block, idx) => ({ ...block, order: idx })));
-
-    // Отправляем массив на сервер
-    try {
-      await api.post("/pages/blocks/reorder", { blocks: reorderedData });
-    } catch (error) {
-      console.error("Ошибка сортировки:", error);
-      fetchBlocks(); // Откат при ошибке
-    }
-  };
-
-  // ==========================================
-  // РЕНДЕР
-  // ==========================================
-  if (isLoading) {
-    return (
-      <Center style={{ height: "70vh" }}>
-        <Loader size="xl" color="orange" />
-      </Center>
-    );
-  }
 
   return (
-    <Box p="md" bg="#f8f9fa" style={{ minHeight: "100vh" }}>
-      <Container size="xl">
-        {/* Заголовок */}
-        <Group justify="space-between" mb="xl">
-          <Group>
-            <ThemeIcon size={50} radius="md" color="#1B2E3D">
-              <IconLayoutBoard size={30} />
-            </ThemeIcon>
-            <Box>
-              <Title order={2} style={{ color: "#1B2E3D" }}>Конструктор Главной Страницы</Title>
-              <Text c="dimmed">Управляйте блоками, контентом и порядком отображения</Text>
-            </Box>
-          </Group>
-          <Button
-            leftSection={<IconPlus size={18} />}
-            color="orange"
-            size="md"
-            radius="md"
-            onClick={() => handleOpenModal()}
-          >
-            Добавить Блок
-          </Button>
-        </Group>
+    <div style={{ fontFamily: '"Google Sans", sans-serif' }}>
+      {/* ========================================== */}
+      {/* ШАПКА СТРАНИЦЫ (ЕДИНЫЙ ДИЗАЙН) */}
+      {/* ========================================== */}
+      <Group justify="space-between" mb="xl">
+        <div>
+          <Title order={2} style={{ color: "#1B2E3D" }}>
+            Управление контентом
+          </Title>
+          <Text c="dimmed" mt={5}>
+            Редактируйте тексты, изображения и видимость секций на сайте
+          </Text>
+        </div>
 
-        {/* Таблица блоков */}
-        <Paper withBorder shadow="sm" radius="md" p="md" bg="white">
-          {blocks.length === 0 ? (
-            <Center p="xl">
-              <Text c="dimmed">На странице пока нет блоков. Нажмите "Добавить Блок".</Text>
+        <Tooltip label="Обновить данные">
+          <ActionIcon
+            variant="default"
+            size="lg"
+            onClick={fetchBlocks}
+            loading={isLoading}
+          >
+            <IconRefresh size={18} stroke={1.5} />
+          </ActionIcon>
+        </Tooltip>
+      </Group>
+
+      {/* ========================================== */}
+      {/* ОСНОВНАЯ ТАБЛИЦА */}
+      {/* ========================================== */}
+      <Paper withBorder radius="md" shadow="sm" p={0} style={{ overflow: "hidden", backgroundColor: "white" }}>
+        {isLoading ? (
+          <div style={{ padding: "40px" }}>
+            <Center>
+              <Loader size="lg" color="dark" />
             </Center>
-          ) : (
-            <Table highlightOnHover verticalSpacing="md">
-              <Table.Thead>
+          </div>
+        ) : blocks.length === 0 ? (
+          <Center style={{ padding: "60px 20px", flexDirection: "column" }}>
+            <IconAppWindow size={48} color="#e0e0e0" stroke={1.5} />
+            <Text size="lg" fw={500} mt="md" style={{ color: "#1B2E3D" }}>
+              Блоки не найдены
+            </Text>
+            <Text c="dimmed" mt={5}>
+              Структура страницы пуста. Проверьте базу данных.
+            </Text>
+          </Center>
+        ) : (
+          <Box style={{ overflowX: "auto" }}>
+            <Table striped highlightOnHover verticalSpacing="md" horizontalSpacing="lg" style={{ minWidth: 700 }}>
+              <Table.Thead style={{ backgroundColor: "#f8f9fa" }}>
                 <Table.Tr>
-                  <Table.Th>Порядок</Table.Th>
-                  <Table.Th>Тип компонента</Table.Th>
-                  <Table.Th>Статус</Table.Th>
-                  <Table.Th>Краткие данные (JSON)</Table.Th>
-                  <Table.Th style={{ textAlign: "right" }}>Действия</Table.Th>
+                  <Table.Th style={{ color: "#1B2E3D" }}>Название (Секция)</Table.Th>
+                  <Table.Th style={{ color: "#1B2E3D" }}>Изображение</Table.Th>
+                  <Table.Th style={{ color: "#1B2E3D" }}>Основной заголовок</Table.Th>
+                  <Table.Th style={{ color: "#1B2E3D", textAlign: "center" }}>Отображение на сайте</Table.Th>
+                  <Table.Th style={{ color: "#1B2E3D", textAlign: "right" }}>Действия</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {blocks.map((block, index) => (
+                {blocks.map((block) => (
                   <Table.Tr key={block.id}>
-                    {/* Сортировка */}
                     <Table.Td>
-                      <Group gap={4} wrap="nowrap">
-                        <ActionIcon
-                          variant="subtle"
-                          color="gray"
-                          disabled={index === 0}
-                          onClick={() => moveBlock(index, "up")}
-                        >
-                          <IconArrowUp size={18} />
-                        </ActionIcon>
-                        <Badge color="gray" variant="light" size="lg" w={30} p={0} style={{ textAlign: "center" }}>
-                          {index + 1}
-                        </Badge>
-                        <ActionIcon
-                          variant="subtle"
-                          color="gray"
-                          disabled={index === blocks.length - 1}
-                          onClick={() => moveBlock(index, "down")}
-                        >
-                          <IconArrowDown size={18} />
-                        </ActionIcon>
-                      </Group>
-                    </Table.Td>
-
-                    {/* Тип */}
-                    <Table.Td>
-                      <Badge color="dark" size="lg" radius="sm">
+                      <Badge color="dark" size="md" radius="sm">
                         {block.type}
                       </Badge>
                     </Table.Td>
 
-                    {/* Статус */}
                     <Table.Td>
+                      {block.imageUrl ? (
+                        <Badge color="blue" variant="light">Загружено</Badge>
+                      ) : (
+                        <Text size="xs" c="dimmed">Нет</Text>
+                      )}
+                    </Table.Td>
+
+                    <Table.Td>
+                      <Text size="sm" fw={600} lineClamp={1} maw={300} style={{ color: "#1B2E3D" }}>
+                        {block.title || "Без заголовка"}
+                      </Text>
+                      <Text size="xs" c="dimmed" lineClamp={1} maw={300}>
+                        {block.subtitle || block.content || "Нет дополнительного текста"}
+                      </Text>
+                    </Table.Td>
+
+                    <Table.Td style={{ textAlign: "center" }}>
                       <Switch
                         checked={block.isActive}
                         onChange={() => handleToggleActive(block.id, block.isActive)}
@@ -360,95 +247,106 @@ export default function PageBuilder() {
                         size="md"
                         onLabel={<IconEye size={14} />}
                         offLabel={<IconEyeOff size={14} />}
+                        style={{ display: "inline-block" }}
                       />
                     </Table.Td>
 
-                    {/* Данные (превью) */}
-                    <Table.Td>
-                      <Text size="xs" c="dimmed" lineClamp={1} maw={300} style={{ fontFamily: "monospace" }}>
-                        {JSON.stringify(block.data)}
-                      </Text>
-                    </Table.Td>
-
-                    {/* Действия */}
                     <Table.Td style={{ textAlign: "right" }}>
-                      <Group gap="xs" justify="flex-end" wrap="nowrap">
-                        <ActionIcon variant="light" color="blue" size="lg" onClick={() => handleOpenModal(block)}>
-                          <IconEdit size={20} />
+                      <Tooltip label="Редактировать контент">
+                        <ActionIcon
+                          variant="light"
+                          color="blue"
+                          size="lg"
+                          onClick={() => handleOpenModal(block)}
+                        >
+                          <IconEdit size={20} stroke={1.5} />
                         </ActionIcon>
-                        <ActionIcon variant="light" color="red" size="lg" onClick={() => handleDelete(block.id)}>
-                          <IconTrash size={20} />
-                        </ActionIcon>
-                      </Group>
+                      </Tooltip>
                     </Table.Td>
                   </Table.Tr>
                 ))}
               </Table.Tbody>
             </Table>
-          )}
-        </Paper>
-      </Container>
+          </Box>
+        )}
+      </Paper>
 
-      {/* Модальное окно создания/редактирования */}
+      {/* ========================================== */}
+      {/* МОДАЛЬНОЕ ОКНО РЕДАКТИРОВАНИЯ */}
+      {/* ========================================== */}
       <Modal
         opened={opened}
         onClose={close}
         title={
           <Title order={3} style={{ color: "#1B2E3D" }}>
-            {editingBlock ? "Редактировать Блок" : "Новый Блок"}
+            Редактирование секции: {editingBlock?.type}
           </Title>
         }
         size="lg"
-        overlayProps={{ blur: 3 }}
+        centered
+        overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
       >
         <Stack gap="md">
-          <Select
-            label="Тип компонента"
-            data={BLOCK_TYPES}
-            value={formData.type}
-            onChange={handleTypeChange}
-            disabled={!!editingBlock} // После создания тип менять нельзя, чтобы не сломать пропсы
-            required
-            size="md"
-          />
-
+          
           <Switch
-            label={<Text fw={600}>Показывать на сайте (Активен)</Text>}
+            label={<Text fw={600} style={{ color: "#1B2E3D" }}>Отображать секцию на сайте</Text>}
             checked={formData.isActive}
             onChange={(e) => setFormData({ ...formData, isActive: e.currentTarget.checked })}
             color="teal"
             size="md"
           />
 
-          <JsonInput
-            label={<Text fw={600}>Контент блока (JSON)</Text>}
-            description="Здесь лежат тексты и настройки. Осторожно с кавычками!"
-            validationError={jsonError ? "Неверный формат JSON" : undefined}
-            formatOnBlur
-            autosize
-            minRows={8}
-            maxRows={15}
-            value={formData.data}
-            onChange={(val) => {
-              setFormData({ ...formData, data: val });
-              setJsonError("");
-            }}
-            styles={{ input: { fontFamily: "monospace", fontSize: "14px" } }}
+          <TextInput
+            label="Основной заголовок (Title)"
+            placeholder="Оставьте пустым, чтобы скрыть"
+            value={formData.title}
+            onChange={(e) => setFormData({ ...formData, title: e.currentTarget.value })}
+            styles={{ label: { color: "#1B2E3D", fontWeight: 600 } }}
           />
-          {jsonError && <Text color="red" size="sm">{jsonError}</Text>}
 
-          <Button
-            size="md"
-            fullWidth
-            mt="md"
-            loading={isSaving}
-            onClick={handleSave}
-            style={{ backgroundColor: "#FF6B00" }} // Оранжевый акцент
-          >
-            Сохранить настройки блока
-          </Button>
+          <TextInput
+            label="Подзаголовок (Subtitle)"
+            placeholder="Короткий поясняющий текст"
+            value={formData.subtitle}
+            onChange={(e) => setFormData({ ...formData, subtitle: e.currentTarget.value })}
+            styles={{ label: { color: "#1B2E3D", fontWeight: 600 } }}
+          />
+
+          <Textarea
+            label="Детальный текст (Content)"
+            placeholder="Описание, перечисление преимуществ или массив данных"
+            minRows={4}
+            value={formData.content}
+            onChange={(e) => setFormData({ ...formData, content: e.currentTarget.value })}
+            styles={{ label: { color: "#1B2E3D", fontWeight: 600 } }}
+          />
+
+          <FileInput
+            label="Изображение для секции"
+            placeholder={editingBlock?.imageUrl ? "Файл уже загружен (нажмите для замены)" : "Выберите фото (JPG, PNG, WEBP)"}
+            leftSection={<IconUpload size={16} />}
+            value={imageFile}
+            onChange={setImageFile}
+            accept="image/png,image/jpeg,image/webp"
+            clearable
+            styles={{ label: { color: "#1B2E3D", fontWeight: 600 } }}
+          />
+
+          <Group justify="flex-end" mt="md">
+            <Button variant="default" onClick={close}>
+              Отмена
+            </Button>
+            <Button
+              size="md"
+              loading={isSaving}
+              onClick={handleSave}
+              style={{ backgroundColor: "#1B2E3D" }}
+            >
+              Сохранить изменения
+            </Button>
+          </Group>
         </Stack>
       </Modal>
-    </Box>
+    </div>
   );
 }

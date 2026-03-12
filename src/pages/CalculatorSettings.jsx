@@ -14,7 +14,6 @@ import {
   Center,
   Stack,
   Accordion,
-  Divider,
   Grid,
   ThemeIcon,
   MultiSelect,
@@ -37,10 +36,11 @@ import {
   IconCopy,
   IconArrowUp,
   IconArrowDown,
+  IconLayersLinked,
 } from "@tabler/icons-react";
 
-// 🔥 Senior Update: Используем единый инстанс API из axios.js
-import api from "../api/axios.js";
+// 🔥 Senior Update: Используем единый инстанс API и методы из axios.js
+import api, { fetchPrices as apiFetchPrices } from "../api/axios.js";
 
 export default function CalculatorSettings() {
   // ==========================================
@@ -72,31 +72,41 @@ export default function CalculatorSettings() {
       setLoading(true);
       setError(null);
 
-      // Загружаем актуальные цены для связи с формулами
-      const pricesRes = await api.get("/prices");
-      const loadedPrices = pricesRes.data.data || pricesRes.data || [];
-      setPrices(
-        loadedPrices.map((p) => ({
-          value: p.id || p.service,
-          label: `${p.service} (${p.price} ₸)`,
-        })),
-      );
-
-      // Загружаем сохраненную конфигурацию калькулятора
-      const configRes = await api.get("/settings/calculator");
-      if (configRes.data && configRes.data.config) {
-        // Убеждаемся, что у всех есть массив addons (доп. опции)
-        const loadedConfigs = configRes.data.config.map((c) => ({
-          ...c,
-          addons: c.addons || [],
-        }));
-        setConfigs(loadedConfigs);
-      } else {
-        setConfigs([]);
+      // 1. Загружаем актуальные цены для связи с формулами
+      const pricesRes = await apiFetchPrices();
+      const loadedPrices = pricesRes.data?.data || pricesRes.data || [];
+      
+      if (Array.isArray(loadedPrices)) {
+        setPrices(
+          loadedPrices.map((p) => ({
+            value: p.id || p.service, // Сохраняем поддержку как ID, так и текстовых ключей
+            label: `${p.service} (${p.price.toLocaleString("ru-RU")} ₸)`,
+          })),
+        );
       }
+
+      // 2. Загружаем сохраненную конфигурацию калькулятора
+      const configRes = await api.get("/settings/calculator");
+      
+      // 🔥 SENIOR FIX: Глубокое извлечение и нормализация структуры данных
+      let loadedConfigs = configRes.data?.config || configRes.data?.data?.config;
+      
+      if (!Array.isArray(loadedConfigs)) {
+        console.warn("⚠️ Конфигурация калькулятора пуста или имеет неверный формат.");
+        loadedConfigs = [];
+      }
+
+      // Гарантируем наличие всех вложенных массивов (защита от краша)
+      const normalizedConfigs = loadedConfigs.map((c) => ({
+        ...c,
+        fields: Array.isArray(c.fields) ? c.fields : [],
+        addons: Array.isArray(c.addons) ? c.addons : [],
+        linkedPrices: Array.isArray(c.linkedPrices) ? c.linkedPrices : [],
+      }));
+
+      setConfigs(normalizedConfigs);
     } catch (err) {
       console.error("Ошибка загрузки настроек:", err);
-      // Никаких фейковых данных! Если сервер недоступен, ставим пустой массив
       setConfigs([]);
       setError(
         "Не удалось загрузить настройки калькулятора. Проверьте соединение с сервером.",
@@ -129,12 +139,7 @@ export default function CalculatorSettings() {
   };
 
   const handleRemoveConfig = (id) => {
-    if (
-      !window.confirm(
-        "Точно удалить этот раздел? Он пропадет из калькулятора на сайте.",
-      )
-    )
-      return;
+    if (!window.confirm("Точно удалить этот раздел? Он пропадет из калькулятора на сайте.")) return;
     setConfigs(configs.filter((c) => c.id !== id));
   };
 
@@ -199,11 +204,10 @@ export default function CalculatorSettings() {
     setConfigs(
       configs.map((c) => {
         if (c.id === configId) {
-          const currentAddons = c.addons || [];
           return {
             ...c,
             addons: [
-              ...currentAddons,
+              ...c.addons,
               {
                 id: `add_${Date.now()}`,
                 name: "Новая опция",
@@ -281,6 +285,7 @@ export default function CalculatorSettings() {
   const handleSaveConfigs = async () => {
     setIsSaving(true);
     try {
+      // API контроллер настроен на POST запрос для перезаписи конфигурации
       await api.post("/settings/calculator", { config: configs });
       alert("Сложная архитектура калькулятора успешно сохранена!");
     } catch (err) {
@@ -304,7 +309,7 @@ export default function CalculatorSettings() {
       {/* ========================================== */}
       {/* ШАПКА */}
       {/* ========================================== */}
-      <Group justify="space-between" mb="xl">
+      <Group justify="space-between" mb="md">
         <div>
           <Group gap="xs" mb="xs">
             <Title order={2} style={{ color: "#1B2E3D" }}>
@@ -341,11 +346,24 @@ export default function CalculatorSettings() {
               fontWeight: 600,
             }}
             size="md"
+            visibleFrom="sm" // Прячем верхнюю кнопку на мобилках (там есть плавающая)
           >
             Сохранить архитектуру
           </Button>
         </Group>
       </Group>
+
+      {/* СВОДКА (АНАЛИТИКА) */}
+      {!loading && !error && (
+        <Group gap="md" mb="xl">
+          <Badge color="blue" variant="outline" size="lg" leftSection={<IconLayersLinked size={14}/>}>
+            Всего разделов: {configs.length}
+          </Badge>
+          <Badge color="teal" variant="outline" size="lg" leftSection={<IconMathFunction size={14}/>}>
+            Кастомных формул: {configs.filter(c => c.calcType === "custom").length}
+          </Badge>
+        </Group>
+      )}
 
       {error && (
         <Alert
@@ -525,7 +543,7 @@ export default function CalculatorSettings() {
                             data={prices}
                             searchable
                             clearable
-                            value={config.linkedPrices || []}
+                            value={config.linkedPrices}
                             onChange={(val) =>
                               updateConfig(config.id, "linkedPrices", val)
                             }
@@ -666,7 +684,7 @@ export default function CalculatorSettings() {
                         </Button>
                       </Group>
 
-                      {!config.addons || config.addons.length === 0 ? (
+                      {config.addons.length === 0 ? (
                         <Text size="sm" c="dimmed">
                           Дополнительные опции не настроены.
                         </Text>

@@ -33,19 +33,17 @@ import {
   IconEdit,
   IconReceipt2,
   IconWallet,
-  IconCalendarStats,
   IconSearch,
   IconFilter,
   IconArrowsSort,
   IconCalendarEvent,
-  IconBusinessplan,
   IconTrendingUp,
   IconTrendingDown,
   IconCoin,
   IconLock,
 } from "@tabler/icons-react";
 
-// 🔥 Senior Update: Импортируем готовые методы из нового axios.js
+// 🔥 Senior Update: Импортируем готовые методы из нашего единого шлюза axios.js
 import {
   fetchExpenses as apiFetchExpenses,
   addExpense as apiAddExpense,
@@ -88,7 +86,7 @@ export default function Finance() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 🔥 Категории для ручных расходов
+  // 🔥 Категории для ручных расходов (Настраиваются под бизнес)
   const expenseCategories = [
     "Аренда цеха / офиса",
     "Зарплата (Оклад / Премии)",
@@ -107,22 +105,34 @@ export default function Finance() {
     try {
       setLoading(true);
       setError(null);
-      // Метод API теперь возвращает и доходы, и расходы в единой ленте
+      
       const response = await apiFetchExpenses();
+      const responseData = response.data?.data || response.data || {};
 
-      setTransactions(response.data?.data || response.data || []);
-      setSummary(
-        response.data?.summary || {
-          totalIncome: 0,
-          totalExpense: 0,
-          netProfit: 0,
-        },
-      );
+      // 🔥 SENIOR FIX: Бэкенд возвращает объект { expenses, totalExpenses, totalIncome, netProfit }
+      const expensesList = responseData.expenses || [];
+
+      // Так как в новом контроллере таблица строится только из расходов,
+      // добавляем им флаг type = 'EXPENSE' для совместимости с нашими бейджами
+      const formattedTransactions = expensesList.map(exp => ({
+        ...exp,
+        type: "EXPENSE"
+      }));
+
+      setTransactions(formattedTransactions);
+
+      // Обновляем сводку (Summary)
+      setSummary({
+        totalIncome: responseData.totalIncome || 0,
+        totalExpense: responseData.totalExpenses || 0,
+        netProfit: responseData.netProfit || 0,
+      });
+
     } catch (err) {
       console.error("Ошибка загрузки финансовых данных:", err);
       setTransactions([]);
       setError(
-        "Не удалось подключиться к базе данных. Проверьте соединение с сервером.",
+        "Не удалось получить финансовую сводку. Проверьте соединение с сервером.",
       );
     } finally {
       setLoading(false);
@@ -134,7 +144,7 @@ export default function Finance() {
   }, []);
 
   // ==========================================
-  // БИЗНЕС-ЛОГИКА: ФИЛЬТРАЦИЯ И СОРТИРОВКА
+  // БИЗНЕС-ЛОГИКА: ФИЛЬТРАЦИЯ И СОРТИРОВКА (CLIENT-SIDE)
   // ==========================================
   const processedTransactions = [...transactions]
     .filter((item) => {
@@ -342,7 +352,7 @@ export default function Finance() {
                     Доходы (Завершенные заказы)
                   </Text>
                   <Title order={2} style={{ color: "#1B2E3D" }}>
-                    {summary.totalIncome.toLocaleString("ru-RU")} ₸
+                    {(summary?.totalIncome || 0).toLocaleString("ru-RU")} ₸
                   </Title>
                 </div>
               </Group>
@@ -368,7 +378,7 @@ export default function Finance() {
                     Сумма всех расходов
                   </Text>
                   <Title order={2} style={{ color: "#1B2E3D" }}>
-                    {summary.totalExpense.toLocaleString("ru-RU")} ₸
+                    {(summary?.totalExpense || 0).toLocaleString("ru-RU")} ₸
                   </Title>
                 </div>
               </Group>
@@ -396,10 +406,10 @@ export default function Finance() {
                   <Title
                     order={2}
                     style={{
-                      color: summary.netProfit >= 0 ? "#40c057" : "#fa5252",
+                      color: (summary?.netProfit || 0) >= 0 ? "#40c057" : "#fa5252",
                     }}
                   >
-                    {summary.netProfit.toLocaleString("ru-RU")} ₸
+                    {(summary?.netProfit || 0).toLocaleString("ru-RU")} ₸
                   </Title>
                 </div>
               </Group>

@@ -38,8 +38,10 @@ import {
   IconShoppingCart,
 } from "@tabler/icons-react";
 
-import api, {
+// 🔥 Senior Update: Импортируем все методы СТРОГО из единого шлюза axios.js
+import {
   fetchOrders as apiFetchOrders,
+  createOrder as apiCreateOrder,
   updateOrder as apiUpdateOrder,
   deleteOrder as apiDeleteOrder,
 } from "../api/axios.js";
@@ -150,7 +152,8 @@ export default function Orders() {
 
     setIsCreating(true);
     try {
-      await api.post("/orders", {
+      // 🔥 SENIOR FIX: Используем строго apiCreateOrder из axios.js
+      await apiCreateOrder({
         customerName: newOrder.customerName,
         phone: newOrder.phone,
         serviceType: newOrder.serviceType,
@@ -205,7 +208,7 @@ export default function Orders() {
   const handleAddExpense = () => {
     if (expenseAmount <= 0) return;
     const newExpense = {
-      id: Date.now(),
+      id: Date.now(), // Временный ID для фронтенда
       category: expenseCategory,
       amount: expenseAmount,
       comment: expenseComment || "Без комментария",
