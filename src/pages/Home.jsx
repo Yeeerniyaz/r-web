@@ -423,7 +423,7 @@ export default function Home() {
                 </motion.div>
                 
                 <motion.div variants={fadeUp}>
-                  <Title order={1} style={{ color: "#1B2E3D", fontFamily: '"Google Sans", sans-serif', letterSpacing: "-0.5px", fontSize: "clamp(42px, 5vw, 64px)", lineHeight: 1.1, fontWeight: 900 }}>
+                  <Title order={1} style={{ color: "#1B2E3D", fontFamily: '"Google Sans", sans-serif', letterSpacing: "-0.5px", fontSize: "clamp(30px, 5vw, 50px)", lineHeight: 1.1, fontWeight: 900 }}>
                     РЕКЛАМА, КОТОРАЯ<br />ПРИНОСИТ ДЕНЬГИ
                   </Title>
                 </motion.div>
