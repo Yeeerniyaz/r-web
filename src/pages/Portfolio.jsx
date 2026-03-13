@@ -21,13 +21,13 @@ import {
   Center,
   Stack,
   Box,
-  Switch, // 🔥 Добавлен Switch для управления видимостью
+  Switch,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
   IconPlus,
   IconTrash,
-  IconEdit, // 🔥 Добавлена иконка редактирования
+  IconEdit,
   IconAlertCircle,
   IconRefresh,
   IconUpload,
@@ -42,7 +42,6 @@ import {
   IconEyeOff,
 } from "@tabler/icons-react";
 
-// 🔥 Senior Update: Импортируем методы, включая updatePortfolioItem
 import {
   fetchPortfolio as apiFetchPortfolio,
   addPortfolio as apiAddPortfolio,
@@ -66,17 +65,16 @@ export default function Portfolio() {
   const [sortBy, setSortBy] = useState("NEWEST");
 
   // ==========================================
-  // СОСТОЯНИЯ МОДАЛЬНОГО ОКНА (ДОБАВЛЕНИЕ / РЕДАКТИРОВАНИЕ)
+  // СОСТОЯНИЯ МОДАЛЬНОГО ОКНА
   // ==========================================
   const [opened, { open, close }] = useDisclosure(false);
-  const [editingId, setEditingId] = useState(null); // 🔥 Отслеживаем, редактируем или создаем
+  const [editingId, setEditingId] = useState(null);
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
-  const [isVisible, setIsVisible] = useState(true); // 🔥 Состояние видимости
+  const [isVisible, setIsVisible] = useState(true);
 
-  // Массив для хранения новых файлов (при создании или добавлении к существующим)
   const [files, setFiles] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -86,7 +84,6 @@ export default function Portfolio() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // Категории
   const categoryOptions = [
     { value: "banners", label: "Баннеры" },
     { value: "lightboxes", label: "Лайтбоксы" },
@@ -152,7 +149,6 @@ export default function Portfolio() {
   // ==========================================
   const handleOpenModal = (item = null) => {
     if (item) {
-      // Режим редактирования
       setEditingId(item.id);
       setTitle(item.title || "");
       setCategory(item.category?.toLowerCase().replace("_", "-") || "");
@@ -160,7 +156,6 @@ export default function Portfolio() {
       setIsVisible(item.isVisible !== false);
       setFiles([]);
     } else {
-      // Режим создания
       setEditingId(null);
       setTitle("");
       setCategory("");
@@ -182,17 +177,14 @@ export default function Portfolio() {
     formData.append("description", description);
     formData.append("isVisible", isVisible);
 
-    // Добавляем новые файлы (если они есть)
     files.forEach((file) => {
       formData.append("images", file);
     });
 
     try {
       if (editingId) {
-        // Обновляем существующий проект
         await apiUpdatePortfolioItem(editingId, formData);
       } else {
-        // Проверка: для нового проекта нужна хотя бы 1 картинка
         if (files.length === 0) {
           alert("Для новой работы необходимо загрузить хотя бы 1 фотографию!");
           setIsSubmitting(false);
@@ -236,8 +228,21 @@ export default function Portfolio() {
   };
 
   // ==========================================
-  // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (ЛАЙТБОКС И ИЗОБРАЖЕНИЯ)
+  // 🔥 SENIOR FIX: ФОРМИРОВАНИЕ АБСОЛЮТНЫХ URL ДЛЯ КАРТИНОК
   // ==========================================
+  const getFullUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith("http") || url.startsWith("data:")) return url;
+    
+    // Получаем базовый URL бэкенда (из .env) или используем дефолтный порт
+    const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5505";
+    
+    // Если VITE_API_URL заканчивается на /api, отрезаем его, так как папка /uploads лежит в корне бэкенда
+    const serverUrl = baseUrl.replace(/\/api\/?$/, "");
+    
+    return `${serverUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
   const getCategoryLabel = (val) => {
     const normalizedVal = val?.toLowerCase().replace("_", "-");
     const cat = categoryOptions.find((c) => c.value === normalizedVal);
@@ -245,15 +250,15 @@ export default function Portfolio() {
   };
 
   const getCoverImage = (item) => {
-    if (item.imageUrls && item.imageUrls.length > 0) return item.imageUrls[0];
-    if (item.imageUrl) return item.imageUrl;
+    if (item.imageUrls && item.imageUrls.length > 0) return getFullUrl(item.imageUrls[0]);
+    if (item.imageUrl) return getFullUrl(item.imageUrl);
     return null;
   };
 
   const getAllImages = (item) => {
     if (!item) return [];
-    if (item.imageUrls && item.imageUrls.length > 0) return item.imageUrls;
-    if (item.imageUrl) return [item.imageUrl];
+    if (item.imageUrls && item.imageUrls.length > 0) return item.imageUrls.map(getFullUrl);
+    if (item.imageUrl) return [getFullUrl(item.imageUrl)];
     return [];
   };
 
@@ -284,7 +289,6 @@ export default function Portfolio() {
     );
   }, [lightboxImages.length]);
 
-  // Управление с клавиатуры в лайтбоксе
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!selectedItem) return;
@@ -425,7 +429,7 @@ export default function Portfolio() {
                     flexDirection: "column",
                     cursor: "pointer",
                     transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                    opacity: item.isVisible === false ? 0.7 : 1, // Немного тусклее, если скрыто
+                    opacity: item.isVisible === false ? 0.7 : 1,
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = "translateY(-4px)";
@@ -456,7 +460,6 @@ export default function Portfolio() {
                       }
                     />
                     
-                    {/* Бейдж категории */}
                     <Badge
                       variant="filled"
                       style={{
@@ -469,7 +472,6 @@ export default function Portfolio() {
                       {getCategoryLabel(item.category)}
                     </Badge>
 
-                    {/* 🔥 Иконка лупы по центру */}
                     <div
                       style={{
                         position: "absolute",
@@ -484,7 +486,6 @@ export default function Portfolio() {
                       <IconZoomIn color="white" size={16} />
                     </div>
 
-                    {/* 🔥 Бейдж, если работа скрыта */}
                     {item.isVisible === false && (
                       <Badge
                         color="red"
@@ -534,7 +535,6 @@ export default function Portfolio() {
                     </Text>
                   </Box>
 
-                  {/* 🔥 SENIOR UPDATE: Группа кнопок Редактировать / Удалить */}
                   <Group grow mt="md">
                     <Button
                       variant="light"
@@ -621,7 +621,6 @@ export default function Portfolio() {
         <form onSubmit={handleSave}>
           <Stack gap="md">
             
-            {/* 🔥 SENIOR UPDATE: Управление видимостью */}
             <Switch
               label={<Text fw={600} style={{ color: "#1B2E3D" }}>Показывать в публичном портфолио</Text>}
               checked={isVisible}
@@ -651,7 +650,7 @@ export default function Portfolio() {
             <FileInput
               label={editingId ? "Добавить новые фотографии (опционально)" : "Фотографии работы (можно выбрать несколько)"}
               placeholder={editingId ? "Нажмите для дозагрузки фото (старые сохранятся)" : "Нажмите, чтобы выбрать файлы (до 10 шт)"}
-              required={!editingId} // В режиме редактирования фото можно не загружать
+              required={!editingId}
               multiple
               clearable
               accept="image/png,image/jpeg,image/webp"
@@ -708,7 +707,6 @@ export default function Portfolio() {
       >
         {selectedItem && (
           <>
-            {/* ВЕРХНЯЯ ПАНЕЛЬ: Заголовок и закрытие */}
             <Group
               justify="space-between"
               align="flex-start"
@@ -733,7 +731,6 @@ export default function Portfolio() {
               </ActionIcon>
             </Group>
 
-            {/* ЦЕНТРАЛЬНАЯ ЗОНА: Основное фото и стрелки */}
             <Box
               style={{
                 flexGrow: 1,
@@ -800,7 +797,6 @@ export default function Portfolio() {
               )}
             </Box>
 
-            {/* НИЖНЯЯ ПАНЕЛЬ: Миниатюры (показываем, если картинок больше 1) */}
             {lightboxImages.length > 1 && (
               <Box
                 style={{

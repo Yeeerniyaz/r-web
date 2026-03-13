@@ -78,7 +78,7 @@ export default function PublicPortfolio() {
   }, []);
 
   // ==========================================
-  // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (СЕНЬОР-ФИКС)
+  // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
   // ==========================================
   const getCategoryLabel = (val) => {
     const cat = categories.find(
@@ -87,28 +87,30 @@ export default function PublicPortfolio() {
     return cat ? cat.label : val;
   };
 
-  // 🔥 SENIOR FIX: Жесткая санитария URL для мобильных браузеров
-  const getSafeUrl = (url) => {
+  // 🔥 SENIOR FIX: ФОРМИРОВАНИЕ АБСОЛЮТНЫХ URL ДЛЯ КАРТИНОК ИЗ ЛОКАЛЬНОГО ХРАНИЛИЩА
+  const getFullUrl = (url) => {
     if (!url) return null;
-    let safeUrl = url.replace('http://', 'https://'); // Решает проблему Mixed Content
+    if (url.startsWith("http") || url.startsWith("data:")) return url;
     
-    // БРОНЕЖИЛЕТ ДЛЯ IPHONE: Заставляем Cloudinary отдать универсальный JPG вместо WebP
-    if (safeUrl.includes('f_auto')) {
-      safeUrl = safeUrl.replace('f_auto', 'f_jpg');
-    }
-    return safeUrl;
+    // Получаем базовый URL бэкенда (из .env) или используем дефолтный порт
+    const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5505";
+    
+    // Если VITE_API_URL заканчивается на /api, отрезаем его, так как папка /uploads лежит в корне бэкенда
+    const serverUrl = baseUrl.replace(/\/api\/?$/, "");
+    
+    return `${serverUrl}${url.startsWith('/') ? '' : '/'}${url}`;
   };
 
   const getCoverImage = (item) => {
-    if (item.imageUrls && item.imageUrls.length > 0) return getSafeUrl(item.imageUrls[0]);
-    if (item.imageUrl) return getSafeUrl(item.imageUrl);
+    if (item.imageUrls && item.imageUrls.length > 0) return getFullUrl(item.imageUrls[0]);
+    if (item.imageUrl) return getFullUrl(item.imageUrl);
     return null;
   };
 
   const getAllImages = (item) => {
     if (!item) return [];
-    if (item.imageUrls && item.imageUrls.length > 0) return item.imageUrls.map(getSafeUrl);
-    if (item.imageUrl) return [getSafeUrl(item.imageUrl)];
+    if (item.imageUrls && item.imageUrls.length > 0) return item.imageUrls.map(getFullUrl);
+    if (item.imageUrl) return [getFullUrl(item.imageUrl)];
     return [];
   };
 
@@ -277,7 +279,6 @@ export default function PublicPortfolio() {
                     <Card.Section
                       style={{ position: "relative", overflow: "hidden", height: 280 }}
                     >
-                      {/* 🔥 SENIOR FIX: referrerPolicy для обхода защит iPhone (ITP) */}
                       <img
                         src={coverImage || "https://placehold.co/600x400?text=Нет+фото"}
                         alt={item.title}
@@ -472,7 +473,6 @@ export default function PublicPortfolio() {
                 </ActionIcon>
               )}
 
-              {/* 🔥 SENIOR FIX: Добавлена политика реферрера для обхода блокировок */}
               <img
                 src={lightboxImages[currentImageIndex]}
                 alt={selectedItem.title}

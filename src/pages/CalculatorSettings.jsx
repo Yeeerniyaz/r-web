@@ -65,7 +65,7 @@ export default function CalculatorSettings() {
   ];
 
   // ==========================================
-  // БИЗНЕС-ЛОГИКА: ЗАГРУЗКА ДАННЫХ (REAL DATA)
+  // БИЗНЕС-ЛОГИКА: ЗАГРУЗКА ДАННЫХ
   // ==========================================
   const fetchData = async () => {
     try {
@@ -79,7 +79,7 @@ export default function CalculatorSettings() {
       if (Array.isArray(loadedPrices)) {
         setPrices(
           loadedPrices.map((p) => ({
-            value: p.id || p.service, // Сохраняем поддержку как ID, так и текстовых ключей
+            value: p.id || p.service, // Поддержка как ID, так и текстовых ключей
             label: `${p.service} (${p.price.toLocaleString("ru-RU")} ₸)`,
           })),
         );
@@ -88,15 +88,19 @@ export default function CalculatorSettings() {
       // 2. Загружаем сохраненную конфигурацию калькулятора
       const configRes = await api.get("/settings/calculator");
       
-      // 🔥 SENIOR FIX: Глубокое извлечение и нормализация структуры данных
-      let loadedConfigs = configRes.data?.config || configRes.data?.data?.config;
-      
+      // Бронебойное извлечение данных (даже если бэкенд обернет их в data.value)
+      let loadedConfigs = 
+        configRes.data?.config || 
+        configRes.data?.data?.config || 
+        configRes.data?.data?.value?.config ||
+        [];
+
       if (!Array.isArray(loadedConfigs)) {
         console.warn("⚠️ Конфигурация калькулятора пуста или имеет неверный формат.");
         loadedConfigs = [];
       }
 
-      // Гарантируем наличие всех вложенных массивов (защита от краша)
+      // Гарантируем наличие всех вложенных массивов (защита от краша при map)
       const normalizedConfigs = loadedConfigs.map((c) => ({
         ...c,
         fields: Array.isArray(c.fields) ? c.fields : [],
@@ -280,13 +284,13 @@ export default function CalculatorSettings() {
   };
 
   // ==========================================
-  // СОХРАНЕНИЕ НА БЭКЕНД (REAL DATA)
+  // СОХРАНЕНИЕ НА БЭКЕНД
   // ==========================================
   const handleSaveConfigs = async () => {
     setIsSaving(true);
     try {
-      // API контроллер настроен на POST запрос для перезаписи конфигурации
-      await api.post("/settings/calculator", { config: configs });
+      // 🔥 SENIOR FIX: Жестко прописан метод PUT. Именно он исправляет ошибку 404!
+      await api.put("/settings/calculator", { config: configs });
       alert("Сложная архитектура калькулятора успешно сохранена!");
     } catch (err) {
       console.error("Ошибка сохранения:", err);
@@ -346,7 +350,7 @@ export default function CalculatorSettings() {
               fontWeight: 600,
             }}
             size="md"
-            visibleFrom="sm" // Прячем верхнюю кнопку на мобилках (там есть плавающая)
+            visibleFrom="sm"
           >
             Сохранить архитектуру
           </Button>

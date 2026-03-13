@@ -118,6 +118,22 @@ export default function Category() {
   }, [id]);
 
   // ==========================================
+  // 🔥 SENIOR FIX: ФОРМИРОВАНИЕ АБСОЛЮТНЫХ URL ДЛЯ КАРТИНОК
+  // ==========================================
+  const getFullUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith("http") || url.startsWith("data:")) return url;
+    
+    // Получаем базовый URL бэкенда (из .env) или используем дефолтный порт
+    const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5505";
+    
+    // Если VITE_API_URL заканчивается на /api, отрезаем его, так как папка /uploads лежит в корне
+    const serverUrl = baseUrl.replace(/\/api\/?$/, "");
+    
+    return `${serverUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
+  // ==========================================
   // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ И НАВИГАЦИЯ ЛАЙТБОКСА
   // ==========================================
   const handleItemClick = (item) => {
@@ -131,8 +147,8 @@ export default function Category() {
 
   const getAllImages = (item) => {
     if (!item) return [];
-    if (item.imageUrls && item.imageUrls.length > 0) return item.imageUrls;
-    if (item.imageUrl) return [item.imageUrl];
+    if (item.imageUrls && item.imageUrls.length > 0) return item.imageUrls.map(getFullUrl);
+    if (item.imageUrl) return [getFullUrl(item.imageUrl)];
     return [];
   };
 
@@ -159,10 +175,10 @@ export default function Category() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedItem, handleNext, handlePrev]);
 
-  // Извлекаем обложку для карточки
+  // Извлекаем обложку для карточки (с преобразованием URL)
   const getCoverImage = (item) => {
-    if (item.imageUrls && item.imageUrls.length > 0) return item.imageUrls[0];
-    if (item.imageUrl) return item.imageUrl;
+    if (item.imageUrls && item.imageUrls.length > 0) return getFullUrl(item.imageUrls[0]);
+    if (item.imageUrl) return getFullUrl(item.imageUrl);
     return null;
   };
 
