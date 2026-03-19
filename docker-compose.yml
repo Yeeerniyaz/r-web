@@ -6,9 +6,9 @@ services:
     container_name: r-banners-web
     restart: unless-stopped
     ports:
-      - "5055:80" # Открываем 3000 порт для Nginx Proxy Manager
+      - "5055:80"
     
-    # Ограничиваем размер логов, чтобы фронтенд не забил диск сервера
+    # Чтобы логи не «съели» место на твоем диске
     logging:
       driver: "json-file"
       options:

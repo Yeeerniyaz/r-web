@@ -45,6 +45,8 @@ import {
   IconClock,
   IconServerOff,
   IconPointFilled,
+  IconCode,
+  IconWorld
 } from "@tabler/icons-react";
 import { motion, useMotionValue, useTransform } from "framer-motion";
 
@@ -751,7 +753,7 @@ export default function Home() {
       </Box>
 
       {/* 7. КОНТАКТЫ И ФОРМА */}
-      <Box style={{ backgroundColor: "#1B2E3D" }} py={{ base: 80, md: 100 }} id="contacts">
+      <Box style={{ backgroundColor: "#1B2E3D" }} pt={{ base: 80, md: 100 }} pb={{ base: 20, md: 40 }} id="contacts">
         <Container size="lg">
           <Grid gutter={{ base: 60, md: 80 }} align="center">
             {/* ЛЕВАЯ ЧАСТЬ - КОНТАКТЫ */}
@@ -821,8 +823,57 @@ export default function Home() {
         </Container>
       </Box>
 
-      {/* 8. FOOTER */}
-      <Box style={{ backgroundColor: "#1B2E3D", borderTop: "1px solid rgba(255,255,255,0.05)" }} py={40}>
+      {/* 8. РЕКЛАМА РАЗРАБОТЧИКА (DIGITAL PRODUCTION) */}
+      <Box py={{ base: 60, md: 80 }} style={{ backgroundColor: "#1B2E3D", borderTop: "1px solid rgba(27,46,61,0.05)" }}>
+        <Container size="lg">
+          <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+            <Paper radius="40px" p={{ base: "xl", md: 50 }} style={{ backgroundColor: "#1B2E3D", color: "white", overflow: "hidden", position: "relative", border: "1px solid rgba(255,255,255,0.05)" }}>
+              <Grid align="center" gutter={40}>
+                
+                <Grid.Col span={{ base: 12, md: 7 }}>
+                  <Group gap="xs" mb="md" style={{ display: "inline-flex", padding: "6px 14px", borderRadius: "100px", border: "1px solid rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.05)" }}>
+                    <IconCode size={16} color="#00f2fe" />
+                    <Text size="xs" fw={700} style={{ color: "white", letterSpacing: "1px", textTransform: "uppercase" }}>
+                      Digital Production
+                    </Text>
+                  </Group>
+                  <Title order={2} style={{ fontSize: "clamp(24px, 3vw, 36px)", fontWeight: 800, lineHeight: 1.2 }} mb="md">
+                    Создание IT-продуктов<br/>и автоматизация
+                  </Title>
+                  <Text size="sm" style={{ color: "rgba(255,255,255,0.6)" }} mb="xl" maw={500} lh={1.6}>
+                    Разработка современных сайтов, онлайн-каталогов. Полный цикл от идеи до запуска.
+                  </Text>
+                  <Group gap="md">
+                    <Button component="a" href="https://yeee.kz" target="_blank" size="md" radius="xl" variant="gradient" gradient={{ from: '#e6683c', to: '#f09433' }} leftSection={<IconWorld size={18} />} style={{ fontWeight: 600, color: "white" }}>
+                      Портфолио YEEE.KZ
+                    </Button>
+                    <Button component="a" href="https://wa.me/77066066323" target="_blank" size="md" radius="xl" variant="outline" style={{ borderColor: "rgba(255,255,255,0.2)", color: "white", fontWeight: 600 }} leftSection={<IconBrandWhatsapp size={18} color="#25D366" />}>
+                      Связь с разработчиком
+                    </Button>
+                  </Group>
+                </Grid.Col>
+
+                <Grid.Col span={{ base: 12, md: 5 }}>
+                  <Stack gap="sm">
+                    <Paper p="lg" radius="24px" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", transition: "transform 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.transform = "translateX(-5px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateX(0)"}>
+                      <Text size="xs" fw={700} style={{ color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }} mb={4}>Телефон / WhatsApp</Text>
+                      <Text size="lg" fw={800} style={{ color: "white" }}>+7 706 606 6323</Text>
+                    </Paper>
+                    <Paper p="lg" radius="24px" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", transition: "transform 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.transform = "translateX(-5px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateX(0)"}>
+                      <Text size="xs" fw={700} style={{ color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }} mb={4}>Сайт разработчика</Text>
+                      <Text size="lg" fw={800} style={{ color: "white" }}>yeee.kz</Text>
+                    </Paper>
+                  </Stack>
+                </Grid.Col>
+
+              </Grid>
+            </Paper>
+          </motion.div>
+        </Container>
+      </Box>
+
+      {/* 9. FOOTER */}
+      {/* <Box style={{ backgroundColor: "#1B2E3D", borderTop: "1px solid rgba(255,255,255,0.05)" }} py={40}>
         <Container size="lg">
           <Group justify="space-between" align="center">
             <Group gap="sm">
@@ -840,7 +891,7 @@ export default function Home() {
             </Group>
           </Group>
         </Container>
-      </Box>
+      </Box> */}
     </div>
   );
 }

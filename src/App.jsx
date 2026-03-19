@@ -301,7 +301,7 @@ export default function App() {
   // =======================================
   // СЦЕНАРИЙ 1: АДМИНКА (rukb.yeee.kz)
   // =======================================
-  if (isAdminDomain) {
+  if (!isAdminDomain) {
     return (
       <Routes>
         <Route

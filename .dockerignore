@@ -1,0 +1,36 @@
+# ==========================================
+# DIGITAL PRODUCTION: DOCKER IGNORE
+# Игнорируем всё, что мешает чистому билду
+# ==========================================
+
+# Зависимости и сборка (это мы делаем внутри Docker)
+node_modules
+dist
+build
+.npm
+npm-debug.log*
+
+# Git - контейнеру не нужна история твоих коммитов
+.git
+.gitignore
+
+# Окружение и секреты (не дай бог попадут в образ)
+.env
+.env.local
+.env.*.local
+
+# Логи и кэш
+*.log
+.eslintcache
+.stylelintcache
+
+# Системные файлы и мусор IDE
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Сами конфиги докера (внутри образа они не нужны)
+Dockerfile
+docker-compose.yml
+.dockerignore

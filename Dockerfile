@@ -1,25 +1,15 @@
-# СТАДИЯ 1: Сборка (Build)
-FROM node:18-alpine AS builder
+# Используем стабильный и легковесный образ Nginx на базе Alpine
+FROM nginx:stable-alpine
 
-WORKDIR /app
-
-# Копируем package.json и ставим зависимости
-COPY package*.json ./
-RUN npm install
-
-# Копируем все исходники и запускаем билд
-COPY . .
-RUN npm run build
-
-# СТАДИЯ 2: Продакшн-сервер (Nginx)
-FROM nginx:alpine
-
-# Копируем собранный проект из первой стадии
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Подменяем стандартный конфиг nginx на наш (для React Router)
+# Копируем кастомный конфиг Nginx для корректной работы React Router
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# Копируем папку dist (которую ты собрал на ноуте через npm run build) 
+# прямо в директорию сервера
+COPY dist /usr/share/nginx/html
+
+# Информируем Docker, что сервис слушает 80 порт
 EXPOSE 80
 
+# Запускаем Nginx в режиме foreground (чтобы контейнер не закрылся)
 CMD ["nginx", "-g", "daemon off;"]
